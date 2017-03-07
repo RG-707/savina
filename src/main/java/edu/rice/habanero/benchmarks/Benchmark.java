@@ -11,23 +11,23 @@ import java.util.Map;
  */
 public abstract class Benchmark {
 
-    final Map<String, List<Double>> customAttrs = new HashMap<>();
+    //final Map<String, List<Double>> customAttrs = new HashMap<>();
 
     protected void track(final String attrName, final double attrValue) {
-        if (!customAttrs.containsKey(attrName)) {
-            customAttrs.put(attrName, new ArrayList<>());
-        }
-        customAttrs.get(attrName).add(attrValue);
+        //if (!customAttrs.containsKey(attrName)) {
+            //customAttrs.put(attrName, new ArrayList<>());
+        //}
+        //customAttrs.get(attrName).add(attrValue);
     }
 
     public final String name() {
         return getClass().getSimpleName();
     }
 
-    public final String runtimeInfo() {
-        final String javaVersion = System.getProperty("java.version");
-        return "Java:" + javaVersion + "::Scala:2.11.0";
-    }
+    //public final String runtimeInfo() {
+        //final String javaVersion = System.getProperty("java.version");
+        //return "Java:" + javaVersion + "::Scala:2.11.0";
+    //}
 
     public abstract void initialize(String[] args) throws IOException;
 
