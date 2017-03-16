@@ -24,24 +24,24 @@ public final class FilterBankConfig {
         while (i < args.length) {
             final String loopOptionKey = args[i];
             switch (loopOptionKey) {
-                case "-sim":
+                case "-s":
                 case "-simulation":
                     i += 1;
                     NUM_SIMULATIONS = Integer.parseInt(args[i]);
                     break;
-                case "-col":
+                case "-c":
                 case "-columns":
                     i += 1;
                     NUM_COLUMNS = Integer.parseInt(args[i]);
                     break;
-                case "-chan":
+                case "-a":
                 case "-channels":
                     i += 1;
                     final int argInt = Integer.parseInt(args[i]);
                     final int maxChannels = MessageChannel.values().length - 1;
                     NUM_CHANNELS = Math.max(2, Math.min(argInt, maxChannels));
                     break;
-                case "-debug":
+                case "-d":
                 case "-verbose":
                     debug = true;
                     break;

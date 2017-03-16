@@ -24,29 +24,29 @@ public final class ProdConsBoundedBufferConfig {
         int i = 0;
         while (i < args.length) {
             final String loopOptionKey = args[i];
-
+            System.out.printf(loopOptionKey);
             switch (loopOptionKey) {
-                case "-bb":
+                case "-b":
                     i += 1;
                     bufferSize = Integer.parseInt(args[i]);
                     break;
-                case "-np":
+                case "-p":
                     i += 1;
                     numProducers = Integer.parseInt(args[i]);
                     break;
-                case "-nc":
+                case "-c":
                     i += 1;
                     numConsumers = Integer.parseInt(args[i]);
                     break;
-                case "-pc":
+                case "-x":
                     i += 1;
                     prodCost = Integer.parseInt(args[i]);
                     break;
-                case "-cc":
+                case "-y":
                     i += 1;
                     consCost = Integer.parseInt(args[i]);
                     break;
-                case "-ipp":
+                case "-i":
                     i += 1;
                     numItemsPerProducer = Integer.parseInt(args[i]);
                     break;

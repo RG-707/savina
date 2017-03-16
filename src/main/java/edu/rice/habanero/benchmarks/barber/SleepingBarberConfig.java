@@ -23,10 +23,10 @@ public final class SleepingBarberConfig {
             } else if ("-w".equals(loopOptionKey)) {
                 i += 1;
                 W = Integer.parseInt(args[i]);
-            } else if ("-pr".equals(loopOptionKey)) {
+            } else if ("-p".equals(loopOptionKey)) {
                 i += 1;
                 APR = Integer.parseInt(args[i]);
-            } else if ("-hr".equals(loopOptionKey)) {
+            } else if ("-c".equals(loopOptionKey)) {
                 i += 1;
                 AHR = Integer.parseInt(args[i]);
             } else if ("-debug".equals(loopOptionKey) || "-verbose".equals(loopOptionKey)) {

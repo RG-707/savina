@@ -22,27 +22,27 @@ public final class UctConfig {
             final String loopOptionKey = args[i];
 
             switch (loopOptionKey) {
-                case "-nodes":
+                case "-n":
                     i += 1;
                     MAX_NODES = Integer.parseInt(args[i]);
                     break;
-                case "-avg":
+                case "-a":
                     i += 1;
                     AVG_COMP_SIZE = Integer.parseInt(args[i]);
                     break;
-                case "-stdev":
+                case "-s":
                     i += 1;
                     STDEV_COMP_SIZE = Integer.parseInt(args[i]);
                     break;
-                case "-binomial":
+                case "-b":
                     i += 1;
                     BINOMIAL_PARAM = Integer.parseInt(args[i]);
                     break;
-                case "-urgent":
+                case "-u":
                     i += 1;
                     URGENT_NODE_PERCENT = Integer.parseInt(args[i]);
                     break;
-                case "-debug":
+                case "-d":
                 case "-verbose":
                     debug = true;
                     break;
@@ -63,7 +63,7 @@ public final class UctConfig {
 
     protected static int loop(int busywait, int dummy) {
         int test = 0;
-        long current = System.currentTimeMillis();
+        //long current = System.currentTimeMillis();
 
         for (int k = 0; k < dummy * busywait; k++) {
             test++;
