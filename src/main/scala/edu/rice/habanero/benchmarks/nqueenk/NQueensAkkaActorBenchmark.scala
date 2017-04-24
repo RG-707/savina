@@ -39,6 +39,7 @@ object NQueensAkkaActorBenchmark {
       val actSolution = Master.resultCounter
       val solutionsLimit = NQueensConfig.SOLUTIONS_LIMIT
       val valid = actSolution >= solutionsLimit && actSolution <= expSolution
+      System.out.println("Result valid: " + valid)
     }
 
     def cleanupIteration(lastIteration: Boolean, execTimeMillis: Double) {
