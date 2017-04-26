@@ -17,6 +17,7 @@ Please refer to the following paper for further details: <br />
 <a href="mailto:vsarkar@rice.edu">Vivek Sarkar</a>.
 4th International Workshop on Programming based on Actors, Agents, and Decentralized Control (<a href="http://soft.vub.ac.be/AGERE14/">AGERE! 2014</a>),
 October 2014.
+    
 
 ## Supported actor libraries
 
@@ -30,3 +31,25 @@ October 2014.
 * <a href="http://docs.scala-lang.org/overviews/core/actors.html">Scala</a> 2.11.0
 * <a href="http://github.com/scalaz/scalaz">Scalaz</a> 7.1.0-M6.
 
+## Compile and Run
+
+* Install the java build system [maven](https://spring.io/guides/gs/maven/)
+  * [Suse](http://codeomitted.com/install-java-maven-git-in-opensuse/)
+  * Ubuntu 
+  
+        sudo apt install maven
+
+* Download
+
+        git clone https://github.com/aufgang001/savina
+
+* Compile
+        
+        cd savina
+        mvn compile
+        mvn package
+
+* Run a specific benchmark
+
+        cd target
+        java -cp savina-0.0.1-SNAPSHOT-jar-with-dependencies.jar edu/rice/habanero/benchmarks/pingpong/PingPongAkkaActorBenchmark
