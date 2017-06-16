@@ -1,6 +1,7 @@
 package edu.rice.habanero.benchmarks.logmap;
 
 import edu.rice.habanero.benchmarks.BenchmarkRunner;
+import edu.rice.habanero.benchmarks.CliArgumentParser;
 
 /**
  * Computes Logistic Map source: http://en.wikipedia.org/wiki/Logistic_map
@@ -16,31 +17,11 @@ public final class LogisticMapConfig {
     protected static boolean debug = false;
 
     protected static void parseArgs(final String[] args) {
-        int i = 0;
-        while (i < args.length) {
-            final String loopOptionKey = args[i];
-
-            switch (loopOptionKey) {
-                case "-t":
-                    i += 1;
-                    numTerms = Integer.parseInt(args[i]);
-                    break;
-                case "-s":
-                    i += 1;
-                    numSeries = Integer.parseInt(args[i]);
-                    break;
-                case "-r":
-                    i += 1;
-                    startRate = Double.parseDouble(args[i]);
-                    break;
-                case "-debug":
-                case "-verbose":
-                    debug = true;
-                    break;
-            }
-
-            i += 1;
-        }
+        CliArgumentParser ap = new CliArgumentParser(args);
+        numTerms = ap.getValue("-t", numTerms);
+        numSeries = ap.getValue("-s", numSeries);
+        startRate = ap.getValue("-r", startRate);
+        debug = ap.getValue(new String[]{"--debug", "--verbose"}, debug);
     }
 
     protected static void printArgs() {

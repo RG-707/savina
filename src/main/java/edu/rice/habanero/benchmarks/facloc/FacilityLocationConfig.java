@@ -1,6 +1,7 @@
 package edu.rice.habanero.benchmarks.facloc;
 
 import edu.rice.habanero.benchmarks.BenchmarkRunner;
+import edu.rice.habanero.benchmarks.CliArgumentParser;
 
 import java.util.*;
 
@@ -21,29 +22,14 @@ public final class FacilityLocationConfig {
     protected static boolean debug = false;
 
     protected static void parseArgs(final String[] args) {
-        int i = 0;
-        while (i < args.length) {
-            final String loopOptionKey = args[i];
-            if ("-n".equals(loopOptionKey)) {
-                i += 1;
-                NUM_POINTS = Integer.parseInt(args[i]);
-            } else if ("-g".equals(loopOptionKey)) {
-                i += 1;
-                GRID_SIZE = java.lang.Double.parseDouble(args[i]);
-            } else if ("-a".equals(loopOptionKey)) {
-                i += 1;
-                ALPHA = java.lang.Double.parseDouble(args[i]);
-            } else if ("-s".equals(loopOptionKey)) {
-                i += 1;
-                SEED = java.lang.Long.parseLong(args[i]);
-            } else if ("-c".equals(loopOptionKey)) {
-                i += 1;
-                CUTOFF_DEPTH = Integer.parseInt(args[i]);
-            } else if ("-debug".equals(loopOptionKey) || "-verbose".equals(loopOptionKey)) {
-                debug = true;
-            }
-            i += 1;
-        }
+        CliArgumentParser ap = new CliArgumentParser(args);
+        NUM_POINTS = ap.getValue("-n", NUM_POINTS);
+        GRID_SIZE = ap.getValue("-g", GRID_SIZE);
+        ALPHA = ap.getValue("-a", ALPHA);
+        SEED = ap.getValue("-s", SEED);
+        CUTOFF_DEPTH = ap.getValue("-c", CUTOFF_DEPTH);
+        debug = ap.getValue(new String[]{"--debug", "--verbose"}, debug);
+
         F = Math.sqrt(2) * GRID_SIZE;
     }
 

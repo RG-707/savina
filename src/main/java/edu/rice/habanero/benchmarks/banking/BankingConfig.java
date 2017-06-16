@@ -1,6 +1,7 @@
 package edu.rice.habanero.benchmarks.banking;
 
 import edu.rice.habanero.benchmarks.BenchmarkRunner;
+import edu.rice.habanero.benchmarks.CliArgumentParser;
 
 /**
  * @author <a href="http://shams.web.rice.edu/">Shams Imam</a> (shams@rice.edu)
@@ -13,25 +14,10 @@ public final class BankingConfig {
     protected static boolean debug = false;
 
     protected static void parseArgs(final String[] args) {
-        int i = 0;
-        while (i < args.length) {
-            final String loopOptionKey = args[i];
-            switch (loopOptionKey) {
-                case "-a":
-                    i += 1;
-                    A = Integer.parseInt(args[i]);
-                    break;
-                case "-n":
-                    i += 1;
-                    N = Integer.parseInt(args[i]);
-                    break;
-                case "-debug":
-                case "-verbose":
-                    debug = true;
-                    break;
-            }
-            i += 1;
-        }
+        CliArgumentParser ap = new CliArgumentParser(args);
+        A = ap.getValue("-a", A);
+        N = ap.getValue("-n", N);
+        debug = ap.getValue(new String[]{"--debug", "--verbose"}, debug);
 
         INITIAL_BALANCE = ((Double.MAX_VALUE / (A * N)) / 1_000) * 1_000;
     }

@@ -1,6 +1,7 @@
 package edu.rice.habanero.benchmarks.fjcreate;
 
 import edu.rice.habanero.benchmarks.BenchmarkRunner;
+import edu.rice.habanero.benchmarks.CliArgumentParser;
 
 /**
  * @author <a href="http://shams.web.rice.edu/">Shams Imam</a> (shams@rice.edu)
@@ -12,25 +13,10 @@ public final class ForkJoinConfig {
     protected static boolean debug = false;
 
     protected static void parseArgs(final String[] args) {
-        int i = 0;
-        while (i < args.length) {
-            final String loopOptionKey = args[i];
-            switch (loopOptionKey) {
-                case "-n":
-                    i += 1;
-                    N = Integer.parseInt(args[i]);
-                    break;
-                case "-c":
-                    i += 1;
-                    C = Integer.parseInt(args[i]);
-                    break;
-                case "-debug":
-                case "-verbose":
-                    debug = true;
-                    break;
-            }
-            i += 1;
-        }
+        CliArgumentParser ap = new CliArgumentParser(args);
+        N = ap.getValue("-n", N);
+        C = ap.getValue("-c", C);
+        debug = ap.getValue(new String[]{"--debug", "--verbose"}, debug);
     }
 
     protected static void printArgs() {
