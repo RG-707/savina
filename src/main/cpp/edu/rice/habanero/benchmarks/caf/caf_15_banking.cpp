@@ -245,7 +245,7 @@ public:
            to_string(cfg_.initial_balance).c_str());
   }
 
-  void initialize(message& args) override {
+  void initialize(caf::actor_system_config::string_list& args) override {
     std::ifstream ini{ini_file(args)};
     cfg_.parse(args, ini);
   }

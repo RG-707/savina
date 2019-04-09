@@ -28,7 +28,7 @@ public:
     using namespace caf;
     using namespace std;
     parse_args(argc, argv);
-    benchmark.initialize(cfg_.args_remainder);
+    benchmark.initialize(cfg_.remainder);
     if (cfg_.simple_exectuion_request) {
       benchmark.run_iteration();
       return;

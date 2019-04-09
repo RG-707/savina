@@ -7,7 +7,7 @@
 
 class benchmark {
 public:
-  std::string ini_file(caf::message& args) const;
+  std::string ini_file(caf::actor_system_config::string_list& args) const;
 
   std::string name() const;
 
@@ -15,7 +15,7 @@ public:
 
   virtual void print_arg_info() const = 0;
 
-  virtual void initialize(caf::message& args) = 0;
+  virtual void initialize(caf::actor_system_config::string_list& args) = 0;
 
   virtual void run_iteration() = 0;
 

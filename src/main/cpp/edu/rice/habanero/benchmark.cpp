@@ -1,10 +1,11 @@
 #include "benchmark.hpp"
 
-std::string benchmark::ini_file(caf::message& args) const {
+std::string benchmark::ini_file(caf::actor_system_config::string_list& args) const {
   std::string config_file = "caf-application.ini";
-  args.extract_opts({
-    {"caf#config-file", "", config_file}
-  });
+  // TODO check option used
+  //args.extract_opts({
+  //  {"caf#config-file", "", config_file}
+  //});
   return config_file;
 }
 
