@@ -70,7 +70,7 @@ add_caf_benchmark(caf_08_concdict)
 add_caf_benchmark(caf_09_concsll)
 add_caf_benchmark(caf_10_bndbuffer)
 add_caf_benchmark(caf_11_philosopher)
-#add_caf_benchmark(caf_12_barber) bench uses busy waiting
+add_caf_benchmark(caf_12_barber) #bench uses busy waiting
 #add_caf_benchmark(caf_13_cigsmok) bench uses busy waiting
 add_caf_benchmark(caf_14_logmap REQUEST_AWAIT INFINITE)
 add_caf_benchmark(caf_14_logmap REQUEST_AWAIT HIGH_TIMEOUT)
