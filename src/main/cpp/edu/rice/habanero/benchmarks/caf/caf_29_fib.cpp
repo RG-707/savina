@@ -1,8 +1,8 @@
-#include <iostream>
-#include <vector>
 #include <algorithm>
-#include <map>
 #include <fstream>
+#include <iostream>
+#include <map>
+#include <vector>
 
 #include "benchmark_runner.hpp"
 
@@ -15,8 +15,8 @@ public:
   int n = 25;
 
   config() {
-    opt_group{custom_options_, "global"}
-      .add(n, "nnn,n", "number of fib numbers");
+    opt_group{custom_options_, "global"}.add(n, "nnn,n",
+                                             "number of fib numbers");
   }
 };
 
@@ -37,10 +37,11 @@ struct fibonacci_actor_state {
   int resp_received;
 };
 
-behavior fibonacci_actor_fun(stateful_actor<fibonacci_actor_state>* self, actor parent) {
+behavior fibonacci_actor_fun(stateful_actor<fibonacci_actor_state>* self,
+                             actor parent) {
   auto& s = self->state;
   s.result = 0;
-  s. resp_received = 0;
+  s.resp_received = 0;
   auto process_result = [=](const response& resp) {
     auto& s = self->state;
     if (parent) {
@@ -50,28 +51,28 @@ behavior fibonacci_actor_fun(stateful_actor<fibonacci_actor_state>* self, actor 
     }
     self->quit();
   };
-  return {
-    [=](request& req) {
-      auto& s = self->state;
-      if (req.n <= 2) {
-        s.result = 1;
-        process_result(respone_one);
-      } else {
-        auto f1 = self->spawn(fibonacci_actor_fun, actor_cast<actor>(self));
-        self->send(f1, request{req.n - 1});
-        auto f2 = self->spawn(fibonacci_actor_fun, actor_cast<actor>(self));
-        self->send(f2, request{req.n - 2});
-      }
-    },
-    [=](response& resp) {
-      auto& s = self->state;
-      ++s.resp_received;  
-      s.result += resp.value;
-      if (s.resp_received == 2) {
-        process_result(response{s.result});
-      }
-    }
-  };
+  return {[=](request& req) {
+            auto& s = self->state;
+            if (req.n <= 2) {
+              s.result = 1;
+              process_result(respone_one);
+            } else {
+              auto f1
+                = self->spawn(fibonacci_actor_fun, actor_cast<actor>(self));
+              self->send(f1, request{req.n - 1});
+              auto f2
+                = self->spawn(fibonacci_actor_fun, actor_cast<actor>(self));
+              self->send(f2, request{req.n - 2});
+            }
+          },
+          [=](response& resp) {
+            auto& s = self->state;
+            ++s.resp_received;
+            s.result += resp.value;
+            if (s.resp_received == 2) {
+              process_result(response{s.result});
+            }
+          }};
 }
 
 class bench : public benchmark {
@@ -91,9 +92,10 @@ public:
     auto fj_runner = system.spawn(fibonacci_actor_fun, actor());
     anon_send(fj_runner, request{cfg_.n});
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:

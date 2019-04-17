@@ -1,6 +1,6 @@
+#include <fstream>
 #include <iostream>
 #include <stdlib.h>
-#include <fstream>
 
 #include "benchmark_runner.hpp"
 
@@ -14,8 +14,8 @@ public:
 
   config() {
     opt_group{custom_options_, "global"}
-    .add(n, "nnn,n", "messages per actor")
-    .add(a, "aaa,a", "num of actors");
+      .add(n, "nnn,n", "messages per actor")
+      .add(a, "aaa,a", "num of actors");
   }
 };
 
@@ -28,21 +28,18 @@ void perform_computation(double theta) {
   }
 }
 
-struct message_t {
-};
+struct message_t {};
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(message_t);
 
 behavior throughput_actor(stateful_actor<int>* self, int total_msgs) {
   self->state = 0;
-  return {
-    [=](message_t) {
-      ++self->state;
-      perform_computation(37.2);
-      if (self->state == total_msgs) {
-        self->quit(); 
-      }
+  return {[=](message_t) {
+    ++self->state;
+    perform_computation(37.2);
+    if (self->state == total_msgs) {
+      self->quit();
     }
-  };
+  }};
 }
 
 class bench : public benchmark {
@@ -63,19 +60,20 @@ public:
     actor_system system{cfg_};
     vector<actor> actors;
     actors.reserve(cfg_.a);
-    for (int i = 0; i< cfg_.a; ++i) {
+    for (int i = 0; i < cfg_.a; ++i) {
       actors.emplace_back(system.spawn(throughput_actor, cfg_.n));
     }
     message_t message;
     for (int m = 0; m < cfg_.n; ++m) {
-      for (auto& loop_actor: actors) {
+      for (auto& loop_actor : actors) {
         anon_send(loop_actor, message);
       }
     }
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:

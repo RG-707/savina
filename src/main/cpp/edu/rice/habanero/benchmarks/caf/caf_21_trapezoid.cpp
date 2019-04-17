@@ -1,8 +1,8 @@
-#include <iostream>
-#include <vector>
 #include <algorithm>
-#include <map>
 #include <fstream>
+#include <iostream>
+#include <map>
+#include <vector>
 
 #include "benchmark_runner.hpp"
 
@@ -12,10 +12,10 @@ using namespace caf;
 
 class config : public actor_system_config {
 public:
-  int n = 10000000; // num pieces
-  int w = 100; // num workers
-  double l = 1; // left end-point
-  double r = 5; // right end-point
+  int n = 10000000;  // num pieces
+  int w = 100;       // num workers
+  double l = 1;      // left end-point
+  double r = 5;      // right end-point
   static bool debug; // = false;
 
   config() {
@@ -29,7 +29,7 @@ public:
 };
 bool config::debug = false;
 
-double fx( double x) {
+double fx(double x) {
   double a = sin(pow(x, 3) - 1);
   double b = x + 1;
   double c = a / b;
@@ -52,24 +52,22 @@ struct result_msg {
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(result_msg);
 
 behavior worker_fun(event_based_actor* self, actor master, int id) {
-  return {
-    [=](work_msg& wm) {
-      int n =  ((wm.r - wm.l) / wm.h);
-      auto accum_area = 0.0;
-      int i = 0;
-      while (i < n) {
-        auto lx = (i * wm.h) + wm.l;
-        auto rx = lx + wm.h;
-        auto ly = fx(lx);
-        auto ry = fx(rx);
-        auto area = 0.5 * (ly + ry) * wm.h;
-        accum_area += area;
-        i += 1;
-      }
-      self->send(master, result_msg{accum_area, id});
-      self->quit();
+  return {[=](work_msg& wm) {
+    int n = ((wm.r - wm.l) / wm.h);
+    auto accum_area = 0.0;
+    int i = 0;
+    while (i < n) {
+      auto lx = (i * wm.h) + wm.l;
+      auto rx = lx + wm.h;
+      auto ly = fx(lx);
+      auto ry = fx(rx);
+      auto area = 0.5 * (ly + ry) * wm.h;
+      accum_area += area;
+      i += 1;
     }
-  };
+    self->send(master, result_msg{accum_area, id});
+    self->quit();
+  }};
 }
 
 struct master_state {
@@ -82,32 +80,30 @@ behavior master_fun(stateful_actor<master_state>* self, int num_workers) {
   auto& s = self->state;
   s.workers.reserve(num_workers);
   for (int i = 0; i < num_workers; ++i) {
-    s.workers.emplace_back(self->spawn(worker_fun, actor_cast<actor>(self), i));  
+    s.workers.emplace_back(self->spawn(worker_fun, actor_cast<actor>(self), i));
   }
   s.num_terms_received = 0;
   s.result_area = 0.0;
-  return {
-    [=](result_msg& rm) {
-      auto& s = self->state; 
-      ++s.num_terms_received;
-      s.result_area += rm.result;
-      if (s.num_terms_received == num_workers) {
-        cout << "  Area: " << s.result_area << endl;
-        self->quit();
-      }
-    },
-    [=](work_msg& wm) {
-      auto& s = self->state; 
-      double worker_range = (wm.r - wm.l) / num_workers;
-      int i = 0;
-      for (auto& loop_worker : s.workers) {
-        auto wl = (worker_range * i) + wm.l;
-        auto wr = wl + worker_range;
-        self->send(loop_worker, work_msg{wl, wr, wm.h});
-        ++i; 
-      }
-    }
-  };
+  return {[=](result_msg& rm) {
+            auto& s = self->state;
+            ++s.num_terms_received;
+            s.result_area += rm.result;
+            if (s.num_terms_received == num_workers) {
+              cout << "  Area: " << s.result_area << endl;
+              self->quit();
+            }
+          },
+          [=](work_msg& wm) {
+            auto& s = self->state;
+            double worker_range = (wm.r - wm.l) / num_workers;
+            int i = 0;
+            for (auto& loop_worker : s.workers) {
+              auto wl = (worker_range * i) + wm.l;
+              auto wr = wl + worker_range;
+              self->send(loop_worker, work_msg{wl, wr, wm.h});
+              ++i;
+            }
+          }};
 }
 
 class bench : public benchmark {
@@ -137,9 +133,10 @@ public:
     auto master = system.spawn(master_fun, num_workers);
     anon_send(master, work_msg{cfg_.l, cfg_.r, precision});
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:

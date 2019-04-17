@@ -1,5 +1,5 @@
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 #include "benchmark_runner.hpp"
 
@@ -11,8 +11,7 @@ public:
   static int n; //= 1e6;
 
   config() {
-    opt_group{custom_options_, "global"}
-    .add(n, "num,n", "number of messages");
+    opt_group{custom_options_, "global"}.add(n, "num,n", "number of messages");
   }
 };
 int config::n = 1e6;
@@ -30,35 +29,28 @@ struct result_msg {
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(result_msg);
 
 behavior producer_actor(event_based_actor* self, actor counting) {
-  return {
-    [=](increment_atom) {
-      for (int i = 0; i < config::n; ++i) {
-        self->send(counting, increment_atom::value);
-      }
-      self->send(counting, retrieve_msg{actor_cast<actor>(self)});
-    },
-    [=](result_msg& m) {
-      auto result = m.result;
-      if (result != config::n) {
-        cout << "ERROR: expected: " << config::n << ", found: " << result
-             << endl;
-      } else {
-        cout << "SUCCESS! received: " << result << endl;
-      }
-    }
-  };
+  return {[=](increment_atom) {
+            for (int i = 0; i < config::n; ++i) {
+              self->send(counting, increment_atom::value);
+            }
+            self->send(counting, retrieve_msg{actor_cast<actor>(self)});
+          },
+          [=](result_msg& m) {
+            auto result = m.result;
+            if (result != config::n) {
+              cout << "ERROR: expected: " << config::n << ", found: " << result
+                   << endl;
+            } else {
+              cout << "SUCCESS! received: " << result << endl;
+            }
+          }};
 }
 
 behavior counting_actor(stateful_actor<int>* self) {
   self->state = 0;
   return {
-    [=](increment_atom) { 
-      ++self->state; 
-    },
-    [=](retrieve_msg& m) {
-      self->send(m.sender, result_msg{self->state});
-    }
-  };
+    [=](increment_atom) { ++self->state; },
+    [=](retrieve_msg& m) { self->send(m.sender, result_msg{self->state}); }};
 }
 
 class bench : public benchmark {
@@ -79,9 +71,10 @@ public:
     auto producer = system.spawn(producer_actor, counting);
     anon_send(producer, increment_atom::value);
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:

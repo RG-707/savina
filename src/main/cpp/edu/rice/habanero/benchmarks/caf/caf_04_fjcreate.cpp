@@ -1,6 +1,6 @@
+#include <fstream>
 #include <iostream>
 #include <stdlib.h>
-#include <fstream>
 
 #include "benchmark_runner.hpp"
 
@@ -12,8 +12,7 @@ public:
   int n = 40000;
 
   config() {
-    opt_group{custom_options_, "global"}
-    .add(n, "nnn,n", "num of workers");
+    opt_group{custom_options_, "global"}.add(n, "nnn,n", "num of workers");
   }
 };
 
@@ -21,21 +20,19 @@ void perform_computation(double theta) {
   double sint = sin(theta);
   double res = sint * sint;
   if (res <= 0) {
-    throw string("Benchmark exited with unrealistic res value " + to_string(res));
+    throw string("Benchmark exited with unrealistic res value "
+                 + to_string(res));
   }
 }
 
-struct message_t {
-};
+struct message_t {};
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(message_t);
 
 behavior fork_join_actor(event_based_actor* self) {
-  return {
-    [=](message_t) {
-      perform_computation(37.2);
-      self->quit(); 
-    }
-  };
+  return {[=](message_t) {
+    perform_computation(37.2);
+    self->quit();
+  }};
 }
 
 class bench : public benchmark {
@@ -58,9 +55,10 @@ public:
       anon_send(fj_runner, message);
     }
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:

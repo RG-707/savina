@@ -1,6 +1,6 @@
+#include <fstream>
 #include <iostream>
 #include <vector>
-#include <fstream>
 
 #include "benchmark_runner.hpp"
 
@@ -12,17 +12,17 @@ constexpr long solutions[] = {
   0,
   0,
   2,
-  10,     /* 5 */
+  10,           /* 5 */
   4,
   40,
   92,
   352,
-  724,    /* 10 */
+  724,          /* 10 */
   2680,
   14200,
   73712,
   365596,
-  2279184, /* 15 */
+  2279184,      /* 15 */
   14772512,
   95815104,
   666090624,
@@ -53,7 +53,6 @@ public:
     size = max(1, min(size, max_solutions));
     threshold = max(1, min(threshold, max_solutions));
   }
-
 };
 int config::num_workers = 20;
 int config::size = 12;
@@ -126,22 +125,20 @@ behavior worker_fun(event_based_actor* self, actor master, int /*id*/) {
       }
     }
   };
-  return {
-    [=](work_msg& msg) {
-      nqueens_kernel_par(move(msg));
-      self->send(master, done_msg_atom::value);
-    },
-    [=](stop_msg_atom) {
-      self->send(master, stop_msg_atom::value);
-      self->quit();
-    }};
+  return {[=](work_msg& msg) {
+            nqueens_kernel_par(move(msg));
+            self->send(master, done_msg_atom::value);
+          },
+          [=](stop_msg_atom) {
+            self->send(master, stop_msg_atom::value);
+            self->quit();
+          }};
 }
 
 struct master {
   static long result_counter;
 };
 long master::result_counter = 0;
-
 
 struct master_data {
   vector<actor> workers;
@@ -176,30 +173,27 @@ behavior master_fun(stateful_actor<master_data>* self, int num_workers,
   vector<int> in_array;
   work_msg work_messge{priorities, move(in_array), 0};
   send_work(move(work_messge));
-  return {
-    [=](work_msg& work_message) { 
-      send_work(move(work_message)); 
-    },
-    [=](result_msg_atom) {
-      ++master::result_counter;
-      if (master::result_counter == solutions_limit) {
-        request_workers_to_terminate();
-      }
-    },
-    [=](done_msg_atom) {
-      auto& s = self->state;
-      ++s.num_work_completed;
-      if (s.num_work_completed == s.num_worker_send) {
-        request_workers_to_terminate();
-      }
-    },
-    [=](stop_msg_atom) {
-      auto& s = self->state;
-      ++s.num_workers_terminated;
-      if (s.num_workers_terminated == num_workers) {
-        self->quit();
-      }
-    }};
+  return {[=](work_msg& work_message) { send_work(move(work_message)); },
+          [=](result_msg_atom) {
+            ++master::result_counter;
+            if (master::result_counter == solutions_limit) {
+              request_workers_to_terminate();
+            }
+          },
+          [=](done_msg_atom) {
+            auto& s = self->state;
+            ++s.num_work_completed;
+            if (s.num_work_completed == s.num_worker_send) {
+              request_workers_to_terminate();
+            }
+          },
+          [=](stop_msg_atom) {
+            auto& s = self->state;
+            ++s.num_workers_terminated;
+            if (s.num_workers_terminated == num_workers) {
+              self->quit();
+            }
+          }};
 }
 
 class bench : public benchmark {
@@ -231,12 +225,14 @@ public:
     auto exp_solution = solutions[cfg_.size - 1];
     auto act_solution = master::result_counter;
     auto solutions_limit = cfg_.solutions_limit;
-    auto valid = act_solution >= solutions_limit && act_solution <= exp_solution;
+    auto valid
+      = act_solution >= solutions_limit && act_solution <= exp_solution;
     cout << "Result valid: " << valid << endl;
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:

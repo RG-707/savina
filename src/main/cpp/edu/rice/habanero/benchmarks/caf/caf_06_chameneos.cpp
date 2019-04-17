@@ -1,6 +1,6 @@
+#include <fstream>
 #include <iostream>
 #include <stdlib.h>
-#include <fstream>
 
 #include "benchmark_runner.hpp"
 
@@ -14,18 +14,14 @@ public:
 
   config() {
     opt_group{custom_options_, "global"}
-    .add(num_chameneos, "ccc,c", "number of chameneos")
-    .add(num_meetings, "mmm,m", "number of meetings");
+      .add(num_chameneos, "ccc,c", "number of chameneos")
+      .add(num_meetings, "mmm,m", "number of meetings");
   }
 };
 
-enum color_t {
-  red, blue, yellow, faded
-};
+enum color_t { red, blue, yellow, faded };
 
-const char* color_str[] = {
-  "red", "blue", "yellow", "faded"
-};
+const char* color_str[] = {"red", "blue", "yellow", "faded"};
 
 string to_string(color_t c) {
   return color_str[c];
@@ -117,10 +113,10 @@ chameneos_chameneo_actor(stateful_actor<chameneos_chameneo_actor_state>* self,
   s.color = color_;
   self->send(mall,
              chameneos_helper::meet_msg{s.color, actor_cast<actor>(self)});
-  return  {
+  return {
     [=](chameneos_helper::meet_msg& msg) {
       auto& s = self->state;
-      auto other_color = msg.color; 
+      auto other_color = msg.color;
       auto& sender = msg.sender;
       s.color = chameneos_helper::complement(s.color, other_color);
       ++s.meetings;
@@ -143,8 +139,7 @@ chameneos_chameneo_actor(stateful_actor<chameneos_chameneo_actor_state>* self,
       self->send(sender, chameneos_helper::meeting_count_msg{
                            s.meetings, actor_cast<actor>(self)});
       self->quit();
-    }
-  };
+    }};
 }
 
 struct chameneos_mall_actor_state {
@@ -162,38 +157,36 @@ behavior chameneos_mall_actor(stateful_actor<chameneos_mall_actor_state>* self,
     auto actor_self = actor_cast<actor>(self);
     for (int i = 0; i < num_chameneos; ++i) {
       auto color = static_cast<color_t>(i % 3);
-      auto loop_chamenos =
-        self->spawn(chameneos_chameneo_actor, actor_self, color, i);
+      auto loop_chamenos
+        = self->spawn(chameneos_chameneo_actor, actor_self, color, i);
     }
   };
   // onPostStart
   start_chameneos();
-  return {
-    [=](chameneos_helper::meeting_count_msg& msg) {
-      auto& s = self->state; 
-      ++s.num_faded;
-      s.sum_meetings += msg.count;
-      if (s.num_faded == num_chameneos) {
-        self->quit(); 
-      }
-    },
-    [=](chameneos_helper::meet_msg& msg) {
-      auto& s = self->state; 
-      if (s.n > 0) {
-        if (!s.waiting_chameneo) {
-          s.waiting_chameneo = msg.sender;
-        } else {
-          --s.n;
-          self->send(s.waiting_chameneo, msg);
-          destroy(s.waiting_chameneo);
-        } 
-      } else {
-        auto& sender = msg.sender;
-        self->send(sender,
-                   chameneos_helper::exit_msg{actor_cast<actor>(self)});
-      }
-    } 
-  };
+  return {[=](chameneos_helper::meeting_count_msg& msg) {
+            auto& s = self->state;
+            ++s.num_faded;
+            s.sum_meetings += msg.count;
+            if (s.num_faded == num_chameneos) {
+              self->quit();
+            }
+          },
+          [=](chameneos_helper::meet_msg& msg) {
+            auto& s = self->state;
+            if (s.n > 0) {
+              if (!s.waiting_chameneo) {
+                s.waiting_chameneo = msg.sender;
+              } else {
+                --s.n;
+                self->send(s.waiting_chameneo, msg);
+                destroy(s.waiting_chameneo);
+              }
+            } else {
+              auto& sender = msg.sender;
+              self->send(sender,
+                         chameneos_helper::exit_msg{actor_cast<actor>(self)});
+            }
+          }};
 }
 
 class bench : public benchmark {
@@ -212,12 +205,13 @@ public:
 
   void run_iteration() override {
     actor_system system{cfg_};
-    auto mall_actor =
-      system.spawn(chameneos_mall_actor, cfg_.num_meetings, cfg_.num_chameneos);
+    auto mall_actor = system.spawn(chameneos_mall_actor, cfg_.num_meetings,
+                                   cfg_.num_chameneos);
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:
@@ -228,4 +222,3 @@ int main(int argc, char** argv) {
   benchmark_runner br;
   br.run_benchmark(argc, argv, bench{});
 }
-

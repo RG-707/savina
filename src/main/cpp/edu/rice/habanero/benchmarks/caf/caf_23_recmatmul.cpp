@@ -1,8 +1,8 @@
-#include <iostream>
-#include <vector>
 #include <algorithm>
-#include <map>
 #include <fstream>
+#include <iostream>
+#include <map>
+#include <vector>
 
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
@@ -11,12 +11,12 @@ using namespace std;
 using std::chrono::seconds;
 using namespace caf;
 
-template<class T>
+template <class T>
 struct matrix2d {
-  matrix2d(size_t y, size_t x) 
-      : v_(y) { // initalize all elements in the vector with T()
+  matrix2d(size_t y, size_t x)
+    : v_(y) { // initalize all elements in the vector with T()
     for (auto& v_line : v_) {
-      v_line = std::vector<T>(x); 
+      v_line = std::vector<T>(x);
     }
   }
 
@@ -25,7 +25,7 @@ struct matrix2d {
   matrix2d(matrix2d&&) = default;
   matrix2d& operator=(const matrix2d&) = default;
   matrix2d& operator=(matrix2d&&) = default;
-  
+
   inline T& operator()(size_t y, size_t x) {
     return v_[y][x];
   };
@@ -33,14 +33,15 @@ struct matrix2d {
   inline const T& operator()(size_t y, size_t x) const {
     return v_[y][x];
   };
+
 private:
   std::vector<std::vector<T>> v_;
 };
 
 class config : public actor_system_config {
 public:
-  static int num_workers; // = 20;
-  static int data_length; // = 1024;
+  static int num_workers;     // = 20;
+  static int data_length;     // = 1024;
   static int block_threshold; //= 16384;
 
   static matrix2d<double> a;
@@ -57,7 +58,7 @@ public:
     a = matrix2d<double>(data_length, data_length);
     b = matrix2d<double>(data_length, data_length);
     c = matrix2d<double>(data_length, data_length);
-    
+
     for (int i = 0; i < data_length; i++) {
       for (int j = 0; j < data_length; j++) {
         a(i, j) = i;
@@ -83,9 +84,9 @@ public:
     // ignore NAN and other double problems
     // probably faster than the java double compare implemenation
     if (d1 < d2)
-        return -1;
+      return -1;
     if (d1 > d2)
-        return 1;
+      return 1;
     return 0;
   }
 };
@@ -112,7 +113,8 @@ CAF_ALLOW_UNSAFE_MESSAGE_TYPE(work_msg);
 using done_msg_atom = atom_constant<atom("done")>;
 using stop_msg_atom = atom_constant<atom("stop")>;
 
-void my_rec_mat(int& threshold, event_based_actor* self, actor& master, work_msg& work_message) {
+void my_rec_mat(int& threshold, event_based_actor* self, actor& master,
+                work_msg& work_message) {
   int sr_a = work_message.sr_a;
   int sc_a = work_message.sc_a;
   int sr_b = work_message.sr_b;
@@ -126,38 +128,30 @@ void my_rec_mat(int& threshold, event_based_actor* self, actor& master, work_msg
     int zer_dim = 0;
     int new_dim = dim / 2;
     int new_num_blocks = num_blocks / 4;
-    self->send(master,
-               work_msg{new_priority, sr_a + zer_dim, sc_a + zer_dim,
-                        sr_b + zer_dim, sc_b + zer_dim, sr_c + zer_dim,
-                        sc_c + zer_dim, new_num_blocks, new_dim});
-    self->send(master,
-               work_msg{new_priority, sr_a + zer_dim, sc_a + new_dim,
-                        sr_b + new_dim, sc_b + zer_dim, sr_c + zer_dim,
-                        sc_c + zer_dim, new_num_blocks, new_dim});
-    self->send(master,
-               work_msg{new_priority, sr_a + zer_dim, sc_a + zer_dim,
-                        sr_b + zer_dim, sc_b + new_dim, sr_c + zer_dim,
-                        sc_c + new_dim, new_num_blocks, new_dim});
-    self->send(master,
-               work_msg{new_priority, sr_a + zer_dim, sc_a + new_dim,
-                        sr_b + new_dim, sc_b + new_dim, sr_c + zer_dim,
-                        sc_c + new_dim, new_num_blocks, new_dim});
-    self->send(master,
-               work_msg{new_priority, sr_a + new_dim, sc_a + zer_dim,
-                        sr_b + zer_dim, sc_b + zer_dim, sr_c + new_dim,
-                        sc_c + zer_dim, new_num_blocks, new_dim});
-    self->send(master,
-               work_msg{new_priority, sr_a + new_dim, sc_a + new_dim,
-                        sr_b + new_dim, sc_b + zer_dim, sr_c + new_dim,
-                        sc_c + zer_dim, new_num_blocks, new_dim});
-    self->send(master,
-               work_msg{new_priority, sr_a + new_dim, sc_a + zer_dim,
-                        sr_b + zer_dim, sc_b + new_dim, sr_c + new_dim,
-                        sc_c + new_dim, new_num_blocks, new_dim});
-    self->send(master,
-               work_msg{new_priority, sr_a + new_dim, sc_a + new_dim,
-                        sr_b + new_dim, sc_b + new_dim, sr_c + new_dim,
-                        sc_c + new_dim, new_num_blocks, new_dim});
+    self->send(master, work_msg{new_priority, sr_a + zer_dim, sc_a + zer_dim,
+                                sr_b + zer_dim, sc_b + zer_dim, sr_c + zer_dim,
+                                sc_c + zer_dim, new_num_blocks, new_dim});
+    self->send(master, work_msg{new_priority, sr_a + zer_dim, sc_a + new_dim,
+                                sr_b + new_dim, sc_b + zer_dim, sr_c + zer_dim,
+                                sc_c + zer_dim, new_num_blocks, new_dim});
+    self->send(master, work_msg{new_priority, sr_a + zer_dim, sc_a + zer_dim,
+                                sr_b + zer_dim, sc_b + new_dim, sr_c + zer_dim,
+                                sc_c + new_dim, new_num_blocks, new_dim});
+    self->send(master, work_msg{new_priority, sr_a + zer_dim, sc_a + new_dim,
+                                sr_b + new_dim, sc_b + new_dim, sr_c + zer_dim,
+                                sc_c + new_dim, new_num_blocks, new_dim});
+    self->send(master, work_msg{new_priority, sr_a + new_dim, sc_a + zer_dim,
+                                sr_b + zer_dim, sc_b + zer_dim, sr_c + new_dim,
+                                sc_c + zer_dim, new_num_blocks, new_dim});
+    self->send(master, work_msg{new_priority, sr_a + new_dim, sc_a + new_dim,
+                                sr_b + new_dim, sc_b + zer_dim, sr_c + new_dim,
+                                sc_c + zer_dim, new_num_blocks, new_dim});
+    self->send(master, work_msg{new_priority, sr_a + new_dim, sc_a + zer_dim,
+                                sr_b + zer_dim, sc_b + new_dim, sr_c + new_dim,
+                                sc_c + new_dim, new_num_blocks, new_dim});
+    self->send(master, work_msg{new_priority, sr_a + new_dim, sc_a + new_dim,
+                                sr_b + new_dim, sc_b + new_dim, sr_c + new_dim,
+                                sc_c + new_dim, new_num_blocks, new_dim});
   } else {
     auto& a = config::a;
     auto& b = config::b;
@@ -184,7 +178,7 @@ void my_rec_mat(int& threshold, event_based_actor* self, actor& master, work_msg
 
 behavior worker_fun(event_based_actor* self, actor master, int /*id*/) {
   int threshold = config::block_threshold;
-  return  {
+  return {
     [=](work_msg& work_message) mutable {
       my_rec_mat(threshold, self, master, work_message);
       self->send(master, done_msg_atom::value);
@@ -213,7 +207,7 @@ behavior master_fun(stateful_actor<master_state>* self) {
   s.num_work_completed = 0;
   auto send_work = [=](work_msg&& work_message) {
     auto& s = self->state;
-    int work_index = (work_message.sr_c + work_message.sc_c) % s.num_workers; 
+    int work_index = (work_message.sr_c + work_message.sc_c) % s.num_workers;
     self->send(s.workers[work_index], move(work_message));
     ++s.num_work_sent;
   };
@@ -227,27 +221,23 @@ behavior master_fun(stateful_actor<master_state>* self) {
     int num_blocks = config::data_length * config::data_length;
     send_work(work_msg{0, 0, 0, 0, 0, 0, 0, num_blocks, data_length});
   }
-  return {
-    [=](work_msg& work_message) {
-      send_work(move(work_message));
-    },
-    [=](done_msg_atom) {
-      auto& s = self->state;
-      ++s.num_work_completed;
-      if (s.num_work_completed == s.num_work_sent) {
-        for (int i = 0; i < s.num_workers; ++i) {
-          self->send(s.workers[i], stop_msg_atom::value);
-        } 
-      }
-    },
-    [=](stop_msg_atom) {
-      auto& s = self->state;
-      ++s.num_workers_terminated;
-      if (s.num_workers_terminated == s.num_workers) {
-        self->quit(); 
-      }
-    }
-  };
+  return {[=](work_msg& work_message) { send_work(move(work_message)); },
+          [=](done_msg_atom) {
+            auto& s = self->state;
+            ++s.num_work_completed;
+            if (s.num_work_completed == s.num_work_sent) {
+              for (int i = 0; i < s.num_workers; ++i) {
+                self->send(s.workers[i], stop_msg_atom::value);
+              }
+            }
+          },
+          [=](stop_msg_atom) {
+            auto& s = self->state;
+            ++s.num_workers_terminated;
+            if (s.num_workers_terminated == s.num_workers) {
+              self->quit();
+            }
+          }};
 }
 
 class bench : public benchmark {
@@ -270,13 +260,14 @@ public:
     actor_system system{cfg_};
     cfg_.initialize_data();
     auto master = system.spawn(master_fun);
-    system.await_all_actors_done(); 
+    system.await_all_actors_done();
     bool is_valid = cfg_.valid();
     cout << "Result valid: " << is_valid << endl;
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:

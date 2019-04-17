@@ -1,7 +1,7 @@
-#include <iostream>
-#include <unordered_map>
-#include <sstream>
 #include <fstream>
+#include <iostream>
+#include <sstream>
+#include <unordered_map>
 
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
@@ -14,14 +14,14 @@ public:
   int num_entities = 20;
   int num_msgs_per_worker = 8000;
   static int write_percentage; // = 10;
-  static int size_percentage; // = 1;
-  
+  static int size_percentage;  // = 1;
+
   config() {
     opt_group{custom_options_, "global"}
-    .add(num_entities, "eee,e", "number of entities")
-    .add(num_msgs_per_worker, "mmm,m", "number of messges per worker")
-    .add(write_percentage, "www,w", "write percent")
-    .add(size_percentage, "sss,s", "size percentage");
+      .add(num_entities, "eee,e", "number of entities")
+      .add(num_msgs_per_worker, "mmm,m", "number of messges per worker")
+      .add(write_percentage, "www,w", "write percent")
+      .add(size_percentage, "sss,s", "size percentage");
   }
 };
 int config::write_percentage = 10;
@@ -40,7 +40,7 @@ struct contains_msg {
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(contains_msg);
 
 struct size_msg {
-  actor sender; 
+  actor sender;
 };
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(size_msg);
 
@@ -51,28 +51,26 @@ struct result_msg {
 const auto do_work_msg = result_msg{actor(), -1};
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(result_msg);
 
-//using do_work_msg_atom = atom_constant<atom("dowork")>;
+// using do_work_msg_atom = atom_constant<atom("dowork")>;
 using end_work_msg_atom = atom_constant<atom("endwork")>;
 
-template<class T>
+template <class T>
 int compare_to(const T& left, const T& right);
 
-template<> 
+template <>
 int compare_to<int>(const int& left, const int& right) {
-  return  left - right;
+  return left - right;
 }
 
-template<class T>
+template <class T>
 class sorted_linked_list {
 private:
   struct node {
-    T item; 
+    T item;
     unique_ptr<node> next;
 
-    node(const T& i) 
-        : item(i)
-        , next(nullptr) {
-      // nop  
+    node(const T& i) : item(i), next(nullptr) {
+      // nop
     }
   };
 
@@ -80,14 +78,12 @@ private:
   node* iterator;
 
 public:
-  sorted_linked_list() 
-      : head(nullptr)
-      , iterator(nullptr) {
-    // nop    
+  sorted_linked_list() : head(nullptr), iterator(nullptr) {
+    // nop
   }
 
   bool is_empty() const {
-    return head == nullptr; 
+    return head == nullptr;
   }
 
   void add(const T& item) {
@@ -98,7 +94,7 @@ public:
       new_node->next = move(head);
       head = move(new_node);
     } else {
-      node* after = head->next.get(); 
+      node* after = head->next.get();
       node* before = head.get();
       while (after != nullptr) {
         if (compare_to(item, after->item) < 0) {
@@ -108,16 +104,16 @@ public:
         after = after->next.get();
       }
       new_node->next = move(before->next);
-      before->next = move(new_node); 
+      before->next = move(new_node);
     }
   }
 
   bool contains(const T& item) const {
-    node* n = head.get(); 
-    while(n != nullptr) {
+    node* n = head.get();
+    while (n != nullptr) {
       if (compare_to(item, n->item) == 0) {
-        return true; 
-      } 
+        return true;
+      }
       n = n->next.get();
     }
     return false;
@@ -139,19 +135,19 @@ public:
       iterator = iterator->next.get();
       return &n->item;
     } else {
-      return nullptr; 
-    } 
+      return nullptr;
+    }
   }
 
   void reset() {
-    iterator = head.get(); 
+    iterator = head.get();
   }
 
   int size() const {
     int r = 0;
     node* n = head.get();
     while (n != nullptr) {
-      ++r; 
+      ++r;
       n = n->next.get();
     }
     return r;
@@ -165,53 +161,47 @@ behavior worker_fun(event_based_actor* self, actor master, actor sorted_list,
   auto size_percent = config::size_percentage;
   int msg_count = 0;
   pseudo_random random(id + num_msgs_per_worker + write_percent);
-  return {
-    [=](result_msg&) mutable {
-      ++msg_count; 
-      if (msg_count <= num_msgs_per_worker) {
-        int an_int = random.next_int(100); 
-        if (an_int < size_percent) {
-          self->send(sorted_list, size_msg{actor_cast<actor>(self)});
-        } else if (an_int < (size_percent + write_percent)) {
-          self->send(sorted_list,
-                     write_msg{actor_cast<actor>(self), random.next_int()});
-        } else {
-          self->send(sorted_list,
-                     contains_msg{actor_cast<actor>(self), random.next_int()});
-        }
+  return {[=](result_msg&) mutable {
+    ++msg_count;
+    if (msg_count <= num_msgs_per_worker) {
+      int an_int = random.next_int(100);
+      if (an_int < size_percent) {
+        self->send(sorted_list, size_msg{actor_cast<actor>(self)});
+      } else if (an_int < (size_percent + write_percent)) {
+        self->send(sorted_list,
+                   write_msg{actor_cast<actor>(self), random.next_int()});
       } else {
-        self->send(master, end_work_msg_atom::value); 
+        self->send(sorted_list,
+                   contains_msg{actor_cast<actor>(self), random.next_int()});
       }
-    }   
-  };
+    } else {
+      self->send(master, end_work_msg_atom::value);
+    }
+  }};
 }
 
 behavior sorted_list_fun(stateful_actor<sorted_linked_list<int>>* self) {
-  return {
-    [=](write_msg& write_message) {
-      auto& data_list = self->state;
-      auto value = write_message.value; 
-      data_list.add(value); 
-      actor& sender =  write_message.sender;
-      return result_msg{move(sender), value};
-    },
-    [=](contains_msg& contains_message) {
-      auto& data_list = self->state;
-      auto value = contains_message.value;
-      auto result = data_list.contains(value) ? 1 : 0;
-      actor& sender = contains_message.sender;
-      return result_msg{move(sender), result};
-    },
-    [=](size_msg& read_message) {
-      auto& data_list = self->state;
-      auto value = data_list.size();
-      actor& sender = read_message.sender;
-      return result_msg{move(sender), value};
-    },
-    [=](end_work_msg_atom) {
-      self->quit(); 
-    }
-  };
+  return {[=](write_msg& write_message) {
+            auto& data_list = self->state;
+            auto value = write_message.value;
+            data_list.add(value);
+            actor& sender = write_message.sender;
+            return result_msg{move(sender), value};
+          },
+          [=](contains_msg& contains_message) {
+            auto& data_list = self->state;
+            auto value = contains_message.value;
+            auto result = data_list.contains(value) ? 1 : 0;
+            actor& sender = contains_message.sender;
+            return result_msg{move(sender), result};
+          },
+          [=](size_msg& read_message) {
+            auto& data_list = self->state;
+            auto value = data_list.size();
+            actor& sender = read_message.sender;
+            return result_msg{move(sender), value};
+          },
+          [=](end_work_msg_atom) { self->quit(); }};
 }
 
 behavior master_fun(event_based_actor* self, int num_workers,
@@ -226,15 +216,13 @@ behavior master_fun(event_based_actor* self, int num_workers,
                                      sorted_list, i, num_msgs_per_worker));
     self->send(workers[i], do_work_msg);
   }
-  return {
-    [=](end_work_msg_atom) mutable {
-      ++num_workers_terminated; 
-      if (num_workers_terminated == num_workers) {
-        self->send(sorted_list, end_work_msg_atom::value); 
-        self->quit();
-      }
+  return {[=](end_work_msg_atom) mutable {
+    ++num_workers_terminated;
+    if (num_workers_terminated == num_workers) {
+      self->send(sorted_list, end_work_msg_atom::value);
+      self->quit();
     }
-  };
+  }};
 }
 
 class bench : public benchmark {
@@ -269,9 +257,10 @@ public:
     auto num_msgs_per_worker = cfg_.num_msgs_per_worker;
     auto master = system.spawn(master_fun, num_workers, num_msgs_per_worker);
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:
@@ -282,4 +271,3 @@ int main(int argc, char** argv) {
   benchmark_runner br;
   br.run_benchmark(argc, argv, bench{});
 }
-

@@ -143,8 +143,8 @@ behavior customer_factory_actor(stateful_actor<customer_factory_states>* self,
   return {[=](start_atom) {
             CAF_LOG_DEBUG("Factory: Start spawning customers.");
             for (int i = 0; i < haircuts; ++i) {
-              auto customer =
-                self->spawn(customer_actor, counter->fetch_add(1), self);
+              auto customer
+                = self->spawn(customer_actor, counter->fetch_add(1), self);
               self->send(room, enter_atom::value, customer);
               busy_wait(self->state.random.next_int(apr) + 10);
             }
@@ -190,8 +190,8 @@ public:
     atomic_long counter{0};
     auto barber = system.spawn(barber_actor, cfg_.ahr);
     auto room = system.spawn(waiting_room_actor, cfg_.w, barber);
-    auto factory =
-      system.spawn(customer_factory_actor, &counter, cfg_.apr, cfg_.n, room);
+    auto factory
+      = system.spawn(customer_factory_actor, &counter, cfg_.apr, cfg_.n, room);
 
     anon_send(factory, start_atom::value);
 

@@ -1,6 +1,6 @@
+#include <fstream>
 #include <iostream>
 #include <random>
-#include <fstream>
 #include <stdlib.h>
 
 #include "benchmark_runner.hpp"
@@ -10,13 +10,13 @@ using namespace caf;
 
 class config : public actor_system_config {
 public:
-  int n = 20000; 
+  int n = 20000;
   int w = 120;
-  
+
   config() {
     opt_group{custom_options_, "global"}
-    .add(n, "nnn,n", "number of pings")
-    .add(w, "www,w", "number of actors");
+      .add(n, "nnn,n", "number of pings")
+      .add(w, "www,w", "number of actors");
   }
 };
 
@@ -45,7 +45,7 @@ struct sink_actor_state {
 behavior sink_actor_fun(stateful_actor<sink_actor_state>* self,
                         int num_workers) {
   self->state.num_messages = 0;
-  return  {
+  return {
     [=](exit_msg_atom) {
       auto& s = self->state;
       ++s.num_messages;
@@ -56,10 +56,7 @@ behavior sink_actor_fun(stateful_actor<sink_actor_state>* self,
         }
       }
     },
-    [=](neighbor_msg& nm) {
-      self->state.neighbors = move(nm.neighbors);
-    }
-  };
+    [=](neighbor_msg& nm) { self->state.neighbors = move(nm.neighbors); }};
 }
 
 struct big_actor_state {
@@ -74,13 +71,13 @@ struct big_actor_state {
 behavior big_actor_fun(stateful_actor<big_actor_state>* self, int id,
                        int num_messages, actor sink_actor) {
   auto& s = self->state;
-  s.num_pings = 0; 
+  s.num_pings = 0;
   s.exp_pinger = -1;
   s.random.seed(id);
   s.my_ping_msg = ping_msg{id};
   s.my_pong_msg = pong_msg{id};
 
-  auto send_ping = [=](){
+  auto send_ping = [=]() {
     auto& s = self->state;
     int target = s.random() % s.neighbors.size();
     auto target_actor = s.neighbors[target];
@@ -99,21 +96,16 @@ behavior big_actor_fun(stateful_actor<big_actor_state>* self, int id,
       if (pm.sender != s.exp_pinger) {
         cerr << "ERROR: Expected: " << s.exp_pinger
              << ", but received ping from " << pm.sender << endl;
-      } 
-      if (s.num_pings  == num_messages) {
+      }
+      if (s.num_pings == num_messages) {
         self->send(sink_actor, exit_msg_atom::value);
       } else {
         send_ping();
         ++s.num_pings;
       }
     },
-    [=](exit_msg_atom) {
-      self->quit();
-    },
-    [=](neighbor_msg& nm) {
-      self->state.neighbors = move(nm.neighbors);
-    }
-  };
+    [=](exit_msg_atom) { self->quit(); },
+    [=](neighbor_msg& nm) { self->state.neighbors = move(nm.neighbors); }};
 }
 
 class bench : public benchmark {
@@ -147,9 +139,10 @@ public:
       anon_send(loop_actor, pong_msg{-1});
     }
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:
@@ -160,4 +153,3 @@ int main(int argc, char** argv) {
   benchmark_runner br;
   br.run_benchmark(argc, argv, bench{});
 }
-

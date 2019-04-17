@@ -1,5 +1,5 @@
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 #include "benchmark.hpp"
 #include "benchmark_runner.hpp"
@@ -12,7 +12,8 @@ public:
   int n = 40000;
 
   config() {
-    opt_group{custom_options_, "global"}.add(n, "num,n", "number of ping-pongs");
+    opt_group{custom_options_, "global"}.add(n, "num,n",
+                                             "number of ping-pongs");
   }
 };
 
@@ -32,38 +33,32 @@ CAF_ALLOW_UNSAFE_MESSAGE_TYPE(send_pong_msg);
 
 behavior ping_actor(stateful_actor<int>* self, int count, actor pong) {
   self->state = count;
-  return {
-    [=](start_msg_atom) {
-        self->send(pong, send_ping_msg{actor_cast<actor>(self)});
-        --self->state;
-    },
-    [=](ping_msg_atom) {
-      self->send(pong, send_ping_msg{actor_cast<actor>(self)});
-      --self->state;
-    },
-    [=](send_pong_msg&) {
-      if (self->state > 0) {
-        self->send(self, ping_msg_atom::value);
-      } else {
-        self->send(pong, stop_msg_atom::value);
-        self->quit();
-      }
-    }
-  };
+  return {[=](start_msg_atom) {
+            self->send(pong, send_ping_msg{actor_cast<actor>(self)});
+            --self->state;
+          },
+          [=](ping_msg_atom) {
+            self->send(pong, send_ping_msg{actor_cast<actor>(self)});
+            --self->state;
+          },
+          [=](send_pong_msg&) {
+            if (self->state > 0) {
+              self->send(self, ping_msg_atom::value);
+            } else {
+              self->send(pong, stop_msg_atom::value);
+              self->quit();
+            }
+          }};
 }
 
 behavior pong_actor(stateful_actor<int>* self) {
   self->state = 0;
-  return {
-    [=](send_ping_msg& msg) { 
-      auto& sender = msg.sender;
-      self->send(sender, send_pong_msg{actor_cast<actor>(self)}); 
-      ++self->state;
-    },
-    [=](stop_msg_atom) { 
-      self->quit(); 
-    }
-  };
+  return {[=](send_ping_msg& msg) {
+            auto& sender = msg.sender;
+            self->send(sender, send_pong_msg{actor_cast<actor>(self)});
+            ++self->state;
+          },
+          [=](stop_msg_atom) { self->quit(); }};
 }
 
 void starter_actor(event_based_actor* self, const config* cfg) {
@@ -71,7 +66,6 @@ void starter_actor(event_based_actor* self, const config* cfg) {
   auto ping = self->spawn(ping_actor, cfg->n, pong);
   self->send(ping, start_msg_atom::value);
 }
-
 
 class bench : public benchmark {
 public:
@@ -89,9 +83,10 @@ public:
     actor_system system{cfg_};
     system.spawn(starter_actor, &cfg_);
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:

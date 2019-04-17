@@ -1,9 +1,9 @@
-#include <iostream>
-#include <vector>
 #include <algorithm>
-#include <map>
-#include <limits>
 #include <fstream>
+#include <iostream>
+#include <limits>
+#include <map>
+#include <vector>
 
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
@@ -22,20 +22,20 @@ public:
   static long seed;
   static int n;
   static int c;
-  //static bool debug;
+  // static bool debug;
 
   config() {
     opt_group{custom_options_, "global"}
-      .add(num_points, "nnn,n", "number of points") 
-      .add(grid_size, "ggg,g", "grid size") 
-      .add(alpha, "aaa,a", "alpha") 
-      .add(seed, "sss,s", "seed") 
+      .add(num_points, "nnn,n", "number of points")
+      .add(grid_size, "ggg,g", "grid size")
+      .add(alpha, "aaa,a", "alpha")
+      .add(seed, "sss,s", "seed")
       .add(cutoff_depth, "ccc,c", "cutoff depth");
-      //.add(debug, "ddd,d", "debug");
+    //.add(debug, "ddd,d", "debug");
   }
 
   void initalize() const {
-    f = sqrt(2) * grid_size; 
+    f = sqrt(2) * grid_size;
   }
 };
 int config::num_points = 100000;
@@ -46,7 +46,7 @@ int config::cutoff_depth = 3;
 long config::seed = 123456l;
 int config::n = 40000;
 int config::c = 1;
-//bool config::debug = false;
+// bool config::debug = false;
 
 class point {
 private:
@@ -63,23 +63,21 @@ public:
     return point{x, y};
   }
 
-  //template<class T> // collection<point>
-  //static point find_center(T& points) {
-    //double sum_x = 0; 
-    //double sum_y = 0;
-    //for (point p : points) {
-      //sum_x += p.x;
-      //sum_y += p.y;
-    //}
-    //int num_points = points.size();
-    //double avg_x = sum_x / num_points;
-    //double avg_y = sum_y / num_points;
-    //return point{avg_x, avg_y};
+  // template<class T> // collection<point>
+  // static point find_center(T& points) {
+  // double sum_x = 0;
+  // double sum_y = 0;
+  // for (point p : points) {
+  // sum_x += p.x;
+  // sum_y += p.y;
+  //}
+  // int num_points = points.size();
+  // double avg_x = sum_x / num_points;
+  // double avg_y = sum_y / num_points;
+  // return point{avg_x, avg_y};
   //}
 
-  point(double x, double y)
-      :  x(x)
-      ,  y(y) {
+  point(double x, double y) : x(x), y(y) {
     // nop
   }
 
@@ -107,10 +105,7 @@ using point_collection = vector<point>;
 class box {
 public:
   box(double x1, double y1, double x2, double y2)
-      : x1(x1)
-      , y1(y1)
-      , x2(x2)
-      , y2(y2) {
+    : x1(x1), y1(y1), x2(x2), y2(y2) {
     // nop
   }
 
@@ -139,7 +134,7 @@ enum class position : int {
 
 struct facility_msg {
   position position_relative_to_parent;
-  int depth;  
+  int depth;
   point point_value;
   bool from_child;
 };
@@ -175,16 +170,14 @@ behavior producer_actor_fun(stateful_actor<producer_actor_state>* self,
   };
   // onPoststart()
   produce_customer();
-  return {
-    [=](next_customer_msg_atom) {
-      if (self->state.items_produced < config::num_points) {
-        produce_customer();
-      } else {
-        self->send(consumer, request_exit_msg_atom::value);
-        self->quit();
-      }
+  return {[=](next_customer_msg_atom) {
+    if (self->state.items_produced < config::num_points) {
+      produce_customer();
+    } else {
+      self->send(consumer, request_exit_msg_atom::value);
+      self->quit();
     }
-  };
+  }};
 }
 
 struct quadrant_actor_state {
@@ -199,23 +192,19 @@ struct quadrant_actor_state {
   int children_facilities;
   int facility_customers;
   // null when closed, non-null when open
-  vector<actor>children;
+  vector<actor> children;
   vector<box> children_boundaries;
   // the cost so far
   double total_cost;
 };
 
 behavior quadrant_actor_fun(stateful_actor<quadrant_actor_state>* self,
-                            actor parent, 
-                            position position_relative_to_parent, 
-                            box boundary, 
-                            double threshold, 
-                            int depth, 
+                            actor parent, position position_relative_to_parent,
+                            box boundary, double threshold, int depth,
                             const point_collection& init_local_facilities,
                             int init_known_facilities,
-                            int init_max_depth_of_known_open_facility, 
-                            const point_collection& init_customers) 
-{
+                            int init_max_depth_of_known_open_facility,
+                            const point_collection& init_customers) {
   auto& s = self->state;
   // the facility associated with this quadrant if it were to open
   s.facility = boundary.mid_point();
@@ -230,14 +219,12 @@ behavior quadrant_actor_fun(stateful_actor<quadrant_actor_state>* self,
   s.facility_customers = 0;
   s.total_cost = 0.0;
   // null when closed, non-null when open
-  auto is_child_col_open = [=]() {
-    return self->state.children.size() > 0;
-  };
-  //auto is_box_col_open = [=]() {
-    //return self->state.children_boundaries.size() > 0;
+  auto is_child_col_open = [=]() { return self->state.children.size() > 0; };
+  // auto is_box_col_open = [=]() {
+  // return self->state.children_boundaries.size() > 0;
   //};
   auto find_cost = [=](const point& point_value) {
-    auto& s = self->state; 
+    auto& s = self->state;
     double result = numeric_limits<double>::max();
     // there will be at least one facility
     for (auto& loop_point : s.local_facilities) {
@@ -245,7 +232,7 @@ behavior quadrant_actor_fun(stateful_actor<quadrant_actor_state>* self,
       if (distance < result) {
         result = distance;
       }
-    } 
+    }
     return result;
   };
   auto add_customer = [=](const point& point_value) {
@@ -264,8 +251,8 @@ behavior quadrant_actor_fun(stateful_actor<quadrant_actor_state>* self,
     auto& s = self->state;
     // notify parent that opened a new facility
     notify_parent_of_facility(s.facility, depth);
-    s.max_depth_of_known_open_facility =
-      max(s.max_depth_of_known_open_facility, depth);
+    s.max_depth_of_known_open_facility
+      = max(s.max_depth_of_known_open_facility, depth);
     // create children and propagate their share of customers to them
     box first_boundary{boundary.x1, s.facility.y, s.facility.x, boundary.y2};
     box second_boundary{s.facility.x, s.facility.y, boundary.x2, boundary.y2};
@@ -273,28 +260,27 @@ behavior quadrant_actor_fun(stateful_actor<quadrant_actor_state>* self,
     box fourth_boundary{s.facility.x, boundary.y1, boundary.x2, s.facility.y};
     auto my_self = actor_cast<actor>(self);
     auto child_generator = [&](position p, box& b) {
-      return self->spawn(
-        quadrant_actor_fun, my_self, p, b,
-        threshold, depth + 1, s.local_facilities, s.known_facilities,
-        s.max_depth_of_known_open_facility, s.support_customers);
+      return self->spawn(quadrant_actor_fun, my_self, p, b, threshold,
+                         depth + 1, s.local_facilities, s.known_facilities,
+                         s.max_depth_of_known_open_facility,
+                         s.support_customers);
     };
     auto first_child = child_generator(position::top_left, first_boundary);
     auto second_child = child_generator(position::top_right, second_boundary);
     auto third_child = child_generator(position::bot_left, third_boundary);
     auto fourth_child = child_generator(position::bot_right, fourth_boundary);
-    s.children =
-      vector<actor>{first_child, second_child, third_child, fourth_child};
+    s.children
+      = vector<actor>{first_child, second_child, third_child, fourth_child};
     s.children_boundaries = vector<box>{first_boundary, second_boundary,
-                                      third_boundary, fourth_boundary};
+                                        third_boundary, fourth_boundary};
     // support customers have been distributed to the children
     s.support_customers.clear();
   };
   auto safely_exit = [=]() {
     auto& s = self->state;
     if (parent) {
-      auto num_facilities = is_child_col_open() ?
-                              s.children_facilities + 1 :
-                              s.children_facilities;
+      auto num_facilities = is_child_col_open() ? s.children_facilities + 1 :
+                                                  s.children_facilities;
       int num_customers = s.facility_customers + s.support_customers.size();
       self->send(parent, confirm_exit_msg{num_facilities, num_customers});
     } else {
@@ -309,90 +295,91 @@ behavior quadrant_actor_fun(stateful_actor<quadrant_actor_state>* self,
       add_customer(loop_point);
     }
   }
-  return {
-    [=](customer_msg& customer) {
-      auto& s = self->state;
-      auto& point_value = customer.point_value;
-      if (!is_child_col_open()) {
-        // no open facility
-        add_customer(point_value);
-        if (s.total_cost > threshold) {
-          partition();
-        }
-      } else {
-        // a facility is already open, propagate customer to correct child
-        int index = 0;
-        while(index <= 4) {
-          auto& loop_child_boundary = s.children_boundaries[index];
-          if (loop_child_boundary.contains(point_value)) {
-            self->send(s.children[index], customer);
-            index = 5;
-          } else {
-            ++index;
-          }
-        }
-      }
-      if (!parent) {
-        // request next customer
-        self->send(customer.producer, next_customer_msg_atom::value);
-      }
-    },
-    [=](facility_msg& facility) {
-      auto& s = self->state;
-      auto& point_value = facility.point_value;
-      auto from_child = facility.from_child;
-      ++s.known_facilities;
-      s.local_facilities.emplace_back(point_value);
-      if (from_child) {
-        notify_parent_of_facility(point_value, facility.depth);
-        if (facility.depth > s.max_depth_of_known_open_facility) {
-          s.max_depth_of_known_open_facility = facility.depth;
-        }
-        // notify sibling
-        auto child_pos = facility.position_relative_to_parent;
-        position sibling_pos;
-        if (child_pos == position::top_left) {
-          sibling_pos = position::bot_right;
-        } else if (child_pos == position::top_right) {
-          sibling_pos = position::bot_left;
-        } else if (child_pos == position::bot_right) {
-          sibling_pos = position::top_left;
-        } else {
-          sibling_pos = position::top_right;
-        }
-        self->send(s.children[static_cast<int>(sibling_pos)], facility_msg{position::unknown, depth, point_value, false});
-      } else {
-        // notify all children
-        if (is_child_col_open()) {
-          for (auto& loop_child : s.children) {
-            self->send(loop_child, facility_msg{position::unknown, depth, point_value, false});
-          }
-        }
-      }
-    },
-    [=](request_exit_msg_atom exit_msg) {
-      auto& s = self->state;
-      if (is_child_col_open()) {
-        for (auto& loop_child : s.children) {
-          self->send(loop_child, exit_msg);
-        }
-      } else {
-        // No children, notify parent and safely exit
-        safely_exit();
-      }
-    },
-    [=](confirm_exit_msg& exit_msg) {
-      auto& s = self->state;
-      // child has sent a confirmation that it has exited
-      ++s.terminated_child_count;
-      s.children_facilities += exit_msg.facilities;
-      s.facility_customers += exit_msg.support_customers;
-      if (s.terminated_child_count == 4) {
-        // all children terminated
-        safely_exit();
-      }
-    }
-  };
+  return {[=](customer_msg& customer) {
+            auto& s = self->state;
+            auto& point_value = customer.point_value;
+            if (!is_child_col_open()) {
+              // no open facility
+              add_customer(point_value);
+              if (s.total_cost > threshold) {
+                partition();
+              }
+            } else {
+              // a facility is already open, propagate customer to correct child
+              int index = 0;
+              while (index <= 4) {
+                auto& loop_child_boundary = s.children_boundaries[index];
+                if (loop_child_boundary.contains(point_value)) {
+                  self->send(s.children[index], customer);
+                  index = 5;
+                } else {
+                  ++index;
+                }
+              }
+            }
+            if (!parent) {
+              // request next customer
+              self->send(customer.producer, next_customer_msg_atom::value);
+            }
+          },
+          [=](facility_msg& facility) {
+            auto& s = self->state;
+            auto& point_value = facility.point_value;
+            auto from_child = facility.from_child;
+            ++s.known_facilities;
+            s.local_facilities.emplace_back(point_value);
+            if (from_child) {
+              notify_parent_of_facility(point_value, facility.depth);
+              if (facility.depth > s.max_depth_of_known_open_facility) {
+                s.max_depth_of_known_open_facility = facility.depth;
+              }
+              // notify sibling
+              auto child_pos = facility.position_relative_to_parent;
+              position sibling_pos;
+              if (child_pos == position::top_left) {
+                sibling_pos = position::bot_right;
+              } else if (child_pos == position::top_right) {
+                sibling_pos = position::bot_left;
+              } else if (child_pos == position::bot_right) {
+                sibling_pos = position::top_left;
+              } else {
+                sibling_pos = position::top_right;
+              }
+              self->send(
+                s.children[static_cast<int>(sibling_pos)],
+                facility_msg{position::unknown, depth, point_value, false});
+            } else {
+              // notify all children
+              if (is_child_col_open()) {
+                for (auto& loop_child : s.children) {
+                  self->send(loop_child, facility_msg{position::unknown, depth,
+                                                      point_value, false});
+                }
+              }
+            }
+          },
+          [=](request_exit_msg_atom exit_msg) {
+            auto& s = self->state;
+            if (is_child_col_open()) {
+              for (auto& loop_child : s.children) {
+                self->send(loop_child, exit_msg);
+              }
+            } else {
+              // No children, notify parent and safely exit
+              safely_exit();
+            }
+          },
+          [=](confirm_exit_msg& exit_msg) {
+            auto& s = self->state;
+            // child has sent a confirmation that it has exited
+            ++s.terminated_child_count;
+            s.children_facilities += exit_msg.facilities;
+            s.facility_customers += exit_msg.support_customers;
+            if (s.terminated_child_count == 4) {
+              // all children terminated
+              safely_exit();
+            }
+          }};
 }
 
 class bench : public benchmark {
@@ -422,15 +409,16 @@ public:
     cfg_.initalize();
     auto threshold = cfg_.alpha * cfg_.f;
     box bounding_box(0, 0, cfg_.grid_size, cfg_.grid_size);
-    auto root_quadrant =
-      system.spawn(quadrant_actor_fun, actor(), position::root, bounding_box,
-                   threshold, 0, point_collection(), 1, -1, point_collection());
+    auto root_quadrant = system.spawn(
+      quadrant_actor_fun, actor(), position::root, bounding_box, threshold, 0,
+      point_collection(), 1, -1, point_collection());
     auto producer = system.spawn(producer_actor_fun, root_quadrant);
     system.await_all_actors_done();
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:

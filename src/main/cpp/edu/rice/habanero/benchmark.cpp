@@ -1,9 +1,10 @@
 #include "benchmark.hpp"
 
-std::string benchmark::ini_file(caf::actor_system_config::string_list& args) const {
+std::string
+benchmark::ini_file(caf::actor_system_config::string_list& args) const {
   std::string config_file = "caf-application.ini";
   // TODO check option used
-  //args.extract_opts({
+  // args.extract_opts({
   //  {"caf#config-file", "", config_file}
   //});
   return config_file;
@@ -18,10 +19,10 @@ std::string benchmark::name() const {
 
 std::string benchmark::runtime_info() const {
 #if defined(__clang__)
-    return std::string("C++: Clang ") +  __VERSION__;
+  return std::string("C++: Clang ") + __VERSION__;
 #elif defined(__GNUC__)
-    return std::string("C++: Gcc ") +  __VERSION__;
+  return std::string("C++: Gcc ") + __VERSION__;
 #else
-    return "C++: unkown compiler";
+  return "C++: unkown compiler";
 #endif
-  }
+}

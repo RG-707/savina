@@ -1,6 +1,6 @@
+#include <fstream>
 #include <iostream>
 #include <unordered_map>
-#include <fstream>
 
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
@@ -25,7 +25,7 @@ struct result_msg {
   actor sender;
   int key;
 };
-const auto do_work_msg = result_msg{actor(),-1};
+const auto do_work_msg = result_msg{actor(), -1};
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(result_msg);
 
 using end_work_msg_atom = atom_constant<atom("endwork")>;
@@ -36,12 +36,12 @@ public:
   int num_msgs_per_worker = 10000;
   static int write_percentage; // = 10;
   using data_map = unordered_map<int, int>;
-  
+
   config() {
     opt_group{custom_options_, "global"}
-    .add(num_entities, "eee,e", "number of entities")
-    .add(num_msgs_per_worker, "mmm,m", "number of messges per worker")
-    .add(write_percentage, "www,w", "write percent");
+      .add(num_entities, "eee,e", "number of entities")
+      .add(num_msgs_per_worker, "mmm,m", "number of messges per worker")
+      .add(write_percentage, "www,w", "write percent");
   }
 };
 int config::write_percentage = 10;
@@ -67,34 +67,30 @@ behavior dictionary_fun(stateful_actor<config::data_map>* self) {
     [=](end_work_msg_atom) {
       cout << "Dictionary Size: " << self->state.size() << endl;
       self->quit();
-    }
-  };
+    }};
 }
 
 behavior worker_fun(event_based_actor* self, actor master, actor dictionary,
-                      int id, int num_msgs_per_worker) {
+                    int id, int num_msgs_per_worker) {
   const auto write_percent = config::write_percentage;
   int message_count = 0;
   pseudo_random random(id + num_msgs_per_worker + write_percent);
-  return {
-    [=](result_msg&) mutable {
-      ++message_count;
-      if (message_count <= num_msgs_per_worker) {
-        int an_int = random.next_int(100);
-        if (an_int < write_percent) {
-          self->send(dictionary,
-                     write_msg{actor_cast<actor>(self), random.next_int(),
-                               random.next_int()});
-        } else {
-          self->send(dictionary,
-                     read_msg{actor_cast<actor>(self), random.next_int()});
-        }
+  return {[=](result_msg&) mutable {
+    ++message_count;
+    if (message_count <= num_msgs_per_worker) {
+      int an_int = random.next_int(100);
+      if (an_int < write_percent) {
+        self->send(dictionary, write_msg{actor_cast<actor>(self),
+                                         random.next_int(), random.next_int()});
       } else {
-        self->send(master, end_work_msg_atom::value);
-        self->quit();
+        self->send(dictionary,
+                   read_msg{actor_cast<actor>(self), random.next_int()});
       }
+    } else {
+      self->send(master, end_work_msg_atom::value);
+      self->quit();
     }
-  };
+  }};
 }
 
 behavior master_fun(event_based_actor* self, int num_workers,
@@ -147,9 +143,10 @@ public:
     int num_msgs_per_worker = cfg_.num_msgs_per_worker;
     auto master = system.spawn(master_fun, num_workers, num_msgs_per_worker);
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:
@@ -160,4 +157,3 @@ int main(int argc, char** argv) {
   benchmark_runner br;
   br.run_benchmark(argc, argv, bench{});
 }
-

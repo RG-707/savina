@@ -1,7 +1,7 @@
-#include <iostream>
-#include <vector>
 #include <atomic>
 #include <fstream>
+#include <iostream>
+#include <vector>
 
 #include "benchmark_runner.hpp"
 
@@ -34,28 +34,24 @@ struct philosopher_states {
 
 behavior philosopher_actor(stateful_actor<philosopher_states>* self, int id,
                            int rounds, atomic_long* counter, actor arbitrator) {
-  return {
-    [=](denied_atom) {
-      auto& s = self->state;
-      ++s.local_counter;
-      self->send(arbitrator, hungry_atom::value, id);
-    },
-    [=](eat_atom) {
-      auto& s = self->state;
-      ++s.rounds_so_far;
-      counter->fetch_add(s.local_counter);
-      self->send(arbitrator, done_atom::value, id);
-      if (s.rounds_so_far < rounds) {
-        self->send(self, start_atom::value);
-      } else {
-        self->send(arbitrator, exit_atom::value);
-        self->quit();
-      }
-    },
-    [=](start_atom) { 
-      self->send(arbitrator, hungry_atom::value, id); 
-    }
-  };
+  return {[=](denied_atom) {
+            auto& s = self->state;
+            ++s.local_counter;
+            self->send(arbitrator, hungry_atom::value, id);
+          },
+          [=](eat_atom) {
+            auto& s = self->state;
+            ++s.rounds_so_far;
+            counter->fetch_add(s.local_counter);
+            self->send(arbitrator, done_atom::value, id);
+            if (s.rounds_so_far < rounds) {
+              self->send(self, start_atom::value);
+            } else {
+              self->send(arbitrator, exit_atom::value);
+              self->quit();
+            }
+          },
+          [=](start_atom) { self->send(arbitrator, hungry_atom::value, id); }};
 }
 
 struct arbitrator_actor_state {
@@ -70,36 +66,34 @@ behavior arbitrator_actor(stateful_actor<arbitrator_actor_state>* self,
   for (int i = 0; i < num_forks; ++i) {
     s.forks.emplace_back(false); // fork not used
   }
-  return {
-    [=](hungry_atom, int philosopher_id) {
-      auto& s = self->state;
-      auto left_fork = philosopher_id;
-      auto right_fork = (philosopher_id + 1) % s.forks.size();
-      if (s.forks[left_fork] || s.forks[right_fork]) {
-        self->send(actor_cast<actor>(self->current_sender()),
-                   denied_atom::value);
-      } else {
-        s.forks[left_fork] = true;
-        s.forks[right_fork] = true;
-        self->send(actor_cast<actor>(self->current_sender()),
-                   eat_atom::value);
-      }
-    },
-    [=](done_atom, int philosopher_id) {
-      auto& s = self->state;
-      auto left_fork = philosopher_id;
-      auto right_fork = (philosopher_id + 1) % s.forks.size();
-      s.forks[left_fork] = false;
-      s.forks[right_fork] = false;
-    },
-    [=](exit_atom) {
-      auto& s = self->state;
-      ++s.num_exit_philosophers;
-      if (num_forks == s.num_exit_philosophers) {
-        self->quit();
-      }
-    }
-  };
+  return {[=](hungry_atom, int philosopher_id) {
+            auto& s = self->state;
+            auto left_fork = philosopher_id;
+            auto right_fork = (philosopher_id + 1) % s.forks.size();
+            if (s.forks[left_fork] || s.forks[right_fork]) {
+              self->send(actor_cast<actor>(self->current_sender()),
+                         denied_atom::value);
+            } else {
+              s.forks[left_fork] = true;
+              s.forks[right_fork] = true;
+              self->send(actor_cast<actor>(self->current_sender()),
+                         eat_atom::value);
+            }
+          },
+          [=](done_atom, int philosopher_id) {
+            auto& s = self->state;
+            auto left_fork = philosopher_id;
+            auto right_fork = (philosopher_id + 1) % s.forks.size();
+            s.forks[left_fork] = false;
+            s.forks[right_fork] = false;
+          },
+          [=](exit_atom) {
+            auto& s = self->state;
+            ++s.num_exit_philosophers;
+            if (num_forks == s.num_exit_philosophers) {
+              self->quit();
+            }
+          }};
 }
 
 class bench : public benchmark {
@@ -121,7 +115,7 @@ public:
     atomic_long counter{0};
     auto arbitrator = system.spawn(arbitrator_actor, cfg_.n);
     vector<actor> philosophers;
-    philosophers.reserve(cfg_.n);  
+    philosophers.reserve(cfg_.n);
     for (int i = 0; i < cfg_.n; ++i) {
       philosophers.emplace_back(
         system.spawn(philosopher_actor, i, cfg_.m, &counter, arbitrator));
@@ -130,11 +124,12 @@ public:
       anon_send(loop_actor, start_atom::value);
     }
     system.await_all_actors_done();
-    cout << "Num retries: "<< counter << endl;
+    cout << "Num retries: " << counter << endl;
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:

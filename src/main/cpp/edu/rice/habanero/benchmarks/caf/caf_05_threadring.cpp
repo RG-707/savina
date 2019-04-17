@@ -1,6 +1,6 @@
+#include <fstream>
 #include <iostream>
 #include <stdlib.h>
-#include <fstream>
 
 #include "benchmark_runner.hpp"
 
@@ -14,8 +14,8 @@ public:
 
   config() {
     opt_group{custom_options_, "global"}
-    .add(n, "nnn,n", "num of actors")
-    .add(r, "rrr,r", "num of pings");
+      .add(n, "nnn,n", "num of actors")
+      .add(r, "rrr,r", "num of pings");
   }
 };
 
@@ -23,52 +23,49 @@ struct ping_message {
   int pings_left;
 
   bool has_next() {
-    return pings_left > 0; 
+    return pings_left > 0;
   }
 
   ping_message next() {
-    return ping_message{pings_left -1}; 
+    return ping_message{pings_left - 1};
   }
 };
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(ping_message);
 
 struct data_message {
-  actor data;  
+  actor data;
 };
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(data_message);
 
 struct exit_message {
   int exits_left;
-  
+
   bool has_next() {
-    return exits_left > 0; 
+    return exits_left > 0;
   }
 
   exit_message next() {
-    return exit_message{exits_left -1};
+    return exit_message{exits_left - 1};
   }
 };
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(exit_message);
 
-behavior thread_ring_actor(stateful_actor<actor>* self, int /*id*/, int num_actors_in_ring) {
-  return {
-    [=](ping_message& pm) {
-      if (pm.has_next()) {
-        self->send(self->state, pm.next()); 
-      } else {
-        self->send(self->state, exit_message{num_actors_in_ring});
-      }
-    },
-    [=](exit_message& em) {
-      if (em.has_next()) {
-        self->send(self->state, em.next()); 
-      }
-      self->quit();
-    },
-    [=](data_message& dm) {
-      self->state = dm.data;
-    }
-  };
+behavior thread_ring_actor(stateful_actor<actor>* self, int /*id*/,
+                           int num_actors_in_ring) {
+  return {[=](ping_message& pm) {
+            if (pm.has_next()) {
+              self->send(self->state, pm.next());
+            } else {
+              self->send(self->state, exit_message{num_actors_in_ring});
+            }
+          },
+          [=](exit_message& em) {
+            if (em.has_next()) {
+              self->send(self->state, em.next());
+            }
+            self->quit();
+          },
+          [=](data_message& dm) { self->state = dm.data; }};
 }
 
 void starter_actor(event_based_actor* self, const config* cfg) {
@@ -76,10 +73,11 @@ void starter_actor(event_based_actor* self, const config* cfg) {
   vector<actor> ring_actors;
   ring_actors.reserve(num_actors_in_ring);
   for (int i = 0; i < num_actors_in_ring; ++i) {
-    ring_actors.emplace_back(self->spawn(thread_ring_actor, i, num_actors_in_ring));
+    ring_actors.emplace_back(
+      self->spawn(thread_ring_actor, i, num_actors_in_ring));
   }
   for (size_t i = 0; i < ring_actors.size(); ++i) {
-    auto next_actor = ring_actors[(i + 1) % num_actors_in_ring] ;
+    auto next_actor = ring_actors[(i + 1) % num_actors_in_ring];
     self->send(ring_actors[i], data_message{next_actor});
   }
   self->send(ring_actors[0], ping_message{cfg->r});
@@ -103,9 +101,10 @@ public:
     actor_system system{cfg_};
     system.spawn(starter_actor, &cfg_);
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:

@@ -1,8 +1,8 @@
-#include <iostream>
-#include <vector>
 #include <atomic>
 #include <deque>
 #include <fstream>
+#include <iostream>
+#include <vector>
 
 #include "benchmark_runner.hpp"
 
@@ -12,10 +12,10 @@ using namespace caf;
 
 class config : public actor_system_config {
 public:
-  static int num_terms; // = 25000;
-  static int num_series; // = 10;
+  static int num_terms;     // = 25000;
+  static int num_series;    // = 10;
   static double start_rate; // = 3.46;
-  static double increment; // = 0.0025;
+  static double increment;  // = 0.0025;
 
   config() {
     opt_group{custom_options_, "global"}
@@ -54,31 +54,30 @@ struct series_worker_state {
   vector<double> cur_term;
 };
 
-behavior series_worker_fun(stateful_actor<series_worker_state>* self, int /*id*/,
-                           actor master, actor computer, double start_term) {
+behavior series_worker_fun(stateful_actor<series_worker_state>* self,
+                           int /*id*/, actor master, actor computer,
+                           double start_term) {
   auto& s = self->state;
   s.cur_term.emplace_back(start_term);
-  return {
-    [=](next_term_msg_atom) {
-      auto& s = self->state;
-      auto sender = actor_cast<actor>(self);
-      auto new_message = compute_msg{move(sender), s.cur_term[0]};
-  #ifdef INFINITE
-      self->request(computer, infinite, move(new_message)).await(
-  #elif HIGH_TIMEOUT
-      self->request(computer, seconds(6000), move(new_message)).await(
-  #endif
-        [=](result_msg& result_message) {
-          self->state.cur_term[0] = result_message.term;
-        }); 
-    },
-    [=](get_term_msg_atom) {
-      self->send(master, result_msg{self->state.cur_term[0]});
-    },
-    [=](stop_msg_atom) {
-      self->quit(); 
-    }
-  };
+  return {[=](next_term_msg_atom) {
+            auto& s = self->state;
+            auto sender = actor_cast<actor>(self);
+            auto new_message = compute_msg{move(sender), s.cur_term[0]};
+#ifdef INFINITE
+            self->request(computer, infinite, move(new_message))
+              .await(
+#elif HIGH_TIMEOUT
+            self->request(computer, seconds(6000), move(new_message))
+              .await(
+#endif
+                [=](result_msg& result_message) {
+                  self->state.cur_term[0] = result_message.term;
+                });
+          },
+          [=](get_term_msg_atom) {
+            self->send(master, result_msg{self->state.cur_term[0]});
+          },
+          [=](stop_msg_atom) { self->quit(); }};
 }
 #elif BECOME_UNBECOME_FAST
 struct series_worker_state {
@@ -86,75 +85,62 @@ struct series_worker_state {
   behavior wait_for_result;
 };
 
-behavior series_worker_fun(stateful_actor<series_worker_state>* self, int /*id*/,
-                           actor master, actor computer, double start_term) {
+behavior series_worker_fun(stateful_actor<series_worker_state>* self,
+                           int /*id*/, actor master, actor computer,
+                           double start_term) {
   auto& s = self->state;
   self->set_default_handler(skip);
   s.cur_term.emplace_back(start_term);
-  s.wait_for_result = {
-    [=](result_msg& result_message) {
-      self->state.cur_term[0] = result_message.term;
-      self->unbecome();
-    }
-  };
-  return {
-    [=](next_term_msg_atom) {
-      auto& s = self->state;
-      auto sender = actor_cast<actor>(self);
-      auto new_message = compute_msg{move(sender), s.cur_term[0]};
-      self->send(computer, move(new_message)); 
-      self->become(keep_behavior, s.wait_for_result);
-    },
-    [=](get_term_msg_atom) {
-      self->send(master, result_msg{self->state.cur_term[0]});
-    },
-    [=](stop_msg_atom) {
-      self->quit(); 
-    }
-  };
+  s.wait_for_result = {[=](result_msg& result_message) {
+    self->state.cur_term[0] = result_message.term;
+    self->unbecome();
+  }};
+  return {[=](next_term_msg_atom) {
+            auto& s = self->state;
+            auto sender = actor_cast<actor>(self);
+            auto new_message = compute_msg{move(sender), s.cur_term[0]};
+            self->send(computer, move(new_message));
+            self->become(keep_behavior, s.wait_for_result);
+          },
+          [=](get_term_msg_atom) {
+            self->send(master, result_msg{self->state.cur_term[0]});
+          },
+          [=](stop_msg_atom) { self->quit(); }};
 }
 #elif BECOME_UNBECOME_SLOW
 struct series_worker_state {
   vector<double> cur_term;
 };
 
-behavior series_worker_fun(stateful_actor<series_worker_state>* self, int /*id*/,
-                           actor master, actor computer, double start_term) {
+behavior series_worker_fun(stateful_actor<series_worker_state>* self,
+                           int /*id*/, actor master, actor computer,
+                           double start_term) {
   auto& s = self->state;
   self->set_default_handler(skip);
   s.cur_term.emplace_back(start_term);
-  return {
-    [=](next_term_msg_atom) {
-      auto& s = self->state;
-      auto sender = actor_cast<actor>(self);
-      auto new_message = compute_msg{move(sender), s.cur_term[0]};
-      self->send(computer, move(new_message)); 
-      self->become(keep_behavior, 
-        [=](result_msg& result_message) {
-          self->state.cur_term[0] = result_message.term;
-          self->unbecome();
-        });
-    },
-    [=](get_term_msg_atom) {
-      self->send(master, result_msg{self->state.cur_term[0]});
-    },
-    [=](stop_msg_atom) {
-      self->quit(); 
-    }
-  };
+  return {[=](next_term_msg_atom) {
+            auto& s = self->state;
+            auto sender = actor_cast<actor>(self);
+            auto new_message = compute_msg{move(sender), s.cur_term[0]};
+            self->send(computer, move(new_message));
+            self->become(keep_behavior, [=](result_msg& result_message) {
+              self->state.cur_term[0] = result_message.term;
+              self->unbecome();
+            });
+          },
+          [=](get_term_msg_atom) {
+            self->send(master, result_msg{self->state.cur_term[0]});
+          },
+          [=](stop_msg_atom) { self->quit(); }};
 }
 #endif
 
 behavior rate_computer_fun(event_based_actor* self, double rate) {
-  return {
-    [=](compute_msg& compute_message) {
-      auto result = compute_next_term(compute_message.term, rate); 
-      return result_msg{result};
-    },
-    [=](stop_msg_atom) {
-      self->quit(); 
-    }
-  };
+  return {[=](compute_msg& compute_message) {
+            auto result = compute_next_term(compute_message.term, rate);
+            return result_msg{result};
+          },
+          [=](stop_msg_atom) { self->quit(); }};
 }
 
 struct master_state {
@@ -170,7 +156,7 @@ behavior master_fun(stateful_actor<master_state>* self) {
   int num_computers = config::num_series;
   s.computers.reserve(num_computers);
   for (int i = 0; i < num_computers; ++i) {
-    auto rate = config::start_rate + (i * config::increment); 
+    auto rate = config::start_rate + (i * config::increment);
     s.computers.emplace_back(self->spawn(rate_computer_fun, rate));
   }
   int num_workers = config::num_series;
@@ -182,35 +168,33 @@ behavior master_fun(stateful_actor<master_state>* self) {
                                        actor_cast<actor>(self), rate_computer,
                                        start_term));
   }
-  return {
-    [=](start_msg_atom) {
-      auto& s = self->state;
-      for (int i = 0; i < config::num_terms; ++i) {
-        for (auto& loop_worker : s.workers) {
-          self->send(loop_worker, next_term_msg_atom::value); 
-        }  
-      } 
-      for (auto& loop_worker : s.workers) {
-        self->send(loop_worker, get_term_msg_atom::value);
-        ++s.num_work_requested;
-      }
-    },
-    [=](result_msg& rm) {
-      auto& s = self->state;
-      s.terms_sum += rm.term;
-      ++s.num_work_received;
-      if (s.num_work_requested == s.num_work_received) {
-        cout << "Terms sum: " << s.terms_sum << endl;
-        for (auto& loop_computer: s.computers) {
-          self->send(loop_computer, stop_msg_atom::value);
-        }
-        for (auto& loop_worker : s.workers) {
-          self->send(loop_worker, stop_msg_atom::value);
-        }
-        self->quit();
-      }
-    }
-  };
+  return {[=](start_msg_atom) {
+            auto& s = self->state;
+            for (int i = 0; i < config::num_terms; ++i) {
+              for (auto& loop_worker : s.workers) {
+                self->send(loop_worker, next_term_msg_atom::value);
+              }
+            }
+            for (auto& loop_worker : s.workers) {
+              self->send(loop_worker, get_term_msg_atom::value);
+              ++s.num_work_requested;
+            }
+          },
+          [=](result_msg& rm) {
+            auto& s = self->state;
+            s.terms_sum += rm.term;
+            ++s.num_work_received;
+            if (s.num_work_requested == s.num_work_received) {
+              cout << "Terms sum: " << s.terms_sum << endl;
+              for (auto& loop_computer : s.computers) {
+                self->send(loop_computer, stop_msg_atom::value);
+              }
+              for (auto& loop_worker : s.workers) {
+                self->send(loop_worker, stop_msg_atom::value);
+              }
+              self->quit();
+            }
+          }};
 }
 
 class bench : public benchmark {
@@ -234,9 +218,10 @@ public:
     auto master = system.spawn(master_fun);
     anon_send(master, start_msg_atom::value);
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:

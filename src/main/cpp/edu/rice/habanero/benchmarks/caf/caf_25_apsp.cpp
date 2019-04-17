@@ -1,8 +1,8 @@
-#include <iostream>
-#include <vector>
 #include <algorithm>
-#include <map>
 #include <fstream>
+#include <iostream>
+#include <map>
+#include <vector>
 
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
@@ -28,18 +28,19 @@ int config::n = 300;
 int config::b = 50;
 int config::w = 100;
 
-template<class T>
+template <class T>
 using arr2_t = vector<vector<T>>;
 
-template<class T>
-arr2_t<T> array_tabulate(size_t y_size, size_t x_size, function<T(size_t, size_t)>&& init_fun) {
+template <class T>
+arr2_t<T> array_tabulate(size_t y_size, size_t x_size,
+                         function<T(size_t, size_t)>&& init_fun) {
   arr2_t<T> result;
   result.reserve(y_size);
   for (size_t y = 0; y < y_size; ++y) {
     vector<T> tmp;
     tmp.reserve(x_size);
     for (size_t x = 0; x < x_size; ++x) {
-      tmp.emplace_back(init_fun(y,x));
+      tmp.emplace_back(init_fun(y, x));
     }
     result.emplace_back(move(tmp));
   }
@@ -52,15 +53,14 @@ struct apsp_utils {
   arr2l graph_data;
 
   void generate_graph() {
-    auto n = config::n; 
+    auto n = config::n;
     auto w = config::w;
     pseudo_random random(n);
-    arr2l local_data = array_tabulate<long>(n, n, [](size_t, size_t) { 
-      return 0; 
-    });
+    arr2l local_data
+      = array_tabulate<long>(n, n, [](size_t, size_t) { return 0; });
     for (int i = 0; i < n; ++i) {
       for (int j = i + 1; j < n; ++j) {
-        auto r = random.next_int(w) + 1; 
+        auto r = random.next_int(w) + 1;
         local_data[i][j] = r;
         local_data[j][i] = r;
       }
@@ -69,11 +69,10 @@ struct apsp_utils {
   }
 
   static arr2l get_block(const arr2l& src_data, int my_block_id) {
-    auto n = config::n; 
+    auto n = config::n;
     auto b = config::b;
-    auto local_data = array_tabulate<long>(b, b, [](size_t, size_t) { 
-      return 0; 
-    });
+    auto local_data
+      = array_tabulate<long>(b, b, [](size_t, size_t) { return 0; });
     auto num_blocks_per_dim = n / b;
     auto global_start_row = (my_block_id / num_blocks_per_dim) * b;
     auto global_start_col = (my_block_id % num_blocks_per_dim) * b;
@@ -86,21 +85,21 @@ struct apsp_utils {
   }
 
   // print content of arr2l
-  template<class T>
+  template <class T>
   static void print(T&& array) {
     ostringstream ss;
     for (auto& a : array) {
       for (auto b : a) {
         ss << b << " ";
-      } 
+      }
       ss << endl;
     }
     cout << ss.str() << endl;
   }
 
   // unused function
-  //void copy(const arr2l& src_block, const arr2l& dest_array,
-            //const tuple<int, int>& offset, int block_size) {
+  // void copy(const arr2l& src_block, const arr2l& dest_array,
+  // const tuple<int, int>& offset, int block_size) {
   // ...
   //}
 };
@@ -120,15 +119,15 @@ struct apsp_neighbor_msg {
 CAF_ALLOW_UNSAFE_MESSAGE_TYPE(apsp_neighbor_msg);
 
 struct apsp_floyd_warshall_actor_state {
-    int num_blocks_in_single_dim;
-    int num_neighbors;
-    int row_offset;
-    int col_offset;
-    list<actor> neighbors;
-    int k;
-    unordered_map<int, arr2l> neighbor_data_per_iteration;
-    bool received_neighbors;
-    arr2l current_iter_data;
+  int num_blocks_in_single_dim;
+  int num_neighbors;
+  int row_offset;
+  int col_offset;
+  list<actor> neighbors;
+  int k;
+  unordered_map<int, arr2l> neighbor_data_per_iteration;
+  bool received_neighbors;
+  arr2l current_iter_data;
 };
 
 behavior apsp_floyd_warshall_actor_fun(
@@ -142,27 +141,27 @@ behavior apsp_floyd_warshall_actor_fun(
   s.k = -1;
   s.received_neighbors = false;
   s.current_iter_data = apsp_utils::get_block(init_graph_data, my_block_id);
-  auto store_iteration_data =
-    [=](int /*iteration*/, int source_id, arr2l&& data_array) {
-      auto& s = self->state;
-      s.neighbor_data_per_iteration[source_id] = move(data_array);
-      return s.neighbor_data_per_iteration.size()
-             == static_cast<size_t>(s.num_neighbors);
-    };
-  auto element_at = [=](int row, int col, int /*src_iter*/,
-                        const arr2l& prev_iter_data) {
-    auto& s = self->state;
-    auto dest_block_id =
-      ((row / block_size) * s.num_blocks_in_single_dim) + (col / block_size);
-    auto local_row = row % block_size;
-    auto local_col = col % block_size;
-    if (dest_block_id == my_block_id) {
-      return prev_iter_data[local_row][local_col];
-    } else {
-      auto& block_data = s.neighbor_data_per_iteration[dest_block_id];
-      return block_data[local_row][local_col];
-    }
-  };
+  auto store_iteration_data
+    = [=](int /*iteration*/, int source_id, arr2l&& data_array) {
+        auto& s = self->state;
+        s.neighbor_data_per_iteration[source_id] = move(data_array);
+        return s.neighbor_data_per_iteration.size()
+               == static_cast<size_t>(s.num_neighbors);
+      };
+  auto element_at
+    = [=](int row, int col, int /*src_iter*/, const arr2l& prev_iter_data) {
+        auto& s = self->state;
+        auto dest_block_id = ((row / block_size) * s.num_blocks_in_single_dim)
+                             + (col / block_size);
+        auto local_row = row % block_size;
+        auto local_col = col % block_size;
+        if (dest_block_id == my_block_id) {
+          return prev_iter_data[local_row][local_col];
+        } else {
+          auto& block_data = s.neighbor_data_per_iteration[dest_block_id];
+          return block_data[local_row][local_col];
+        }
+      };
   auto perform_computation = [=] {
     auto& s = self->state;
     auto& prev_iter_data = s.current_iter_data;
@@ -184,47 +183,43 @@ behavior apsp_floyd_warshall_actor_fun(
     // send the current result to all other blocks who might need it
     // note: this is inefficient version where data is sent to neighbors
     // who might not need it for the current value of k
-    auto result_message =
-      apsp_result_msg{s.k, my_block_id, s.current_iter_data};
-    for(auto& loop_neighbor : s.neighbors) {
-      self->send(loop_neighbor, result_message); 
+    auto result_message
+      = apsp_result_msg{s.k, my_block_id, s.current_iter_data};
+    for (auto& loop_neighbor : s.neighbors) {
+      self->send(loop_neighbor, result_message);
     }
   };
-  return {
-    [=](apsp_result_msg& message) {
-      auto& s = self->state;
-      if (!s.received_neighbors) {
-        cerr << "Block-" << my_block_id << " hasn't received neighbors yet!"
-             << endl;
-        exit(1);
-      }
-      auto have_all_data = store_iteration_data(message.k, message.my_block_id,
-                                                move(message.init_data));
-      if (have_all_data) {
-        // received enough data from neighbors, can proceed to do computation
-        // for next k
-        s.k += 1;
-        perform_computation();
-        notify_neighbors();
-        s.neighbor_data_per_iteration.clear();
-        if (s.k == graph_size - 1) {
-          // we've completed the computation
-          self->quit(); 
-        }
-      }
-    },
-    [=](apsp_initial_msg_atom) {
-      notify_neighbors(); 
-    },
-    [=](apsp_neighbor_msg& message) {
-      auto& s = self->state;
-      auto& msg_neighbors = message.neighbors;
-      s.received_neighbors = true;
-      for (auto& loop_neighbor : msg_neighbors) {
-        s.neighbors.emplace_back(loop_neighbor);
-      }
-    }
-  };
+  return {[=](apsp_result_msg& message) {
+            auto& s = self->state;
+            if (!s.received_neighbors) {
+              cerr << "Block-" << my_block_id
+                   << " hasn't received neighbors yet!" << endl;
+              exit(1);
+            }
+            auto have_all_data = store_iteration_data(
+              message.k, message.my_block_id, move(message.init_data));
+            if (have_all_data) {
+              // received enough data from neighbors, can proceed to do
+              // computation for next k
+              s.k += 1;
+              perform_computation();
+              notify_neighbors();
+              s.neighbor_data_per_iteration.clear();
+              if (s.k == graph_size - 1) {
+                // we've completed the computation
+                self->quit();
+              }
+            }
+          },
+          [=](apsp_initial_msg_atom) { notify_neighbors(); },
+          [=](apsp_neighbor_msg& message) {
+            auto& s = self->state;
+            auto& msg_neighbors = message.neighbors;
+            s.received_neighbors = true;
+            for (auto& loop_neighbor : msg_neighbors) {
+              s.neighbors.emplace_back(loop_neighbor);
+            }
+          }};
 }
 
 class bench : public benchmark {
@@ -256,10 +251,11 @@ public:
       num_blocks_in_single_dim, num_blocks_in_single_dim,
       [&](size_t i, size_t j) -> actor {
         auto my_block_id = (i * num_blocks_in_single_dim) + j;
-        auto apsp_actor = system.spawn(apsp_floyd_warshall_actor_fun, my_block_id,
-                                       block_size, num_nodes, graph_data);
+        auto apsp_actor
+          = system.spawn(apsp_floyd_warshall_actor_fun, my_block_id, block_size,
+                         num_nodes, graph_data);
         return apsp_actor;
-    });
+      });
     // create the links to the neighbors
     for (int bi = 0; bi < num_blocks_in_single_dim; ++bi) {
       for (int bj = 0; bj < num_blocks_in_single_dim; ++bj) {
@@ -286,9 +282,10 @@ public:
       }
     }
   }
+
 protected:
   const char* current_file() const override {
-    return __FILE__; 
+    return __FILE__;
   }
 
 private:
