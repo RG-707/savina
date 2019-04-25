@@ -85,7 +85,7 @@ add_caf_benchmark(caf_15_banking BECOME_UNBECOME_FAST)
 add_caf_benchmark(caf_16_radixsort)
 #add_caf_benchmark(caf_17_filterbank) savina implementation is buggy 
 add_caf_benchmark(caf_18_sieve)
-#add_caf_benchmark(caf_19_uct) bench uses busy waiting
+add_caf_benchmark(caf_19_uct) #bench uses busy waiting
 add_caf_benchmark(caf_20_facloc)
 add_caf_benchmark(caf_21_trapezoid)
 #add_caf_benchmark(caf_22_piprecision) bench uses BigDecimal
