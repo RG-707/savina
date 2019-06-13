@@ -93,7 +93,7 @@ add_caf_benchmark(caf_23_recmatmul)
 add_caf_benchmark(caf_24_quicksort)
 add_caf_benchmark(caf_25_apsp)
 #add_caf_benchmark(caf_26_sor) savina implementation is buggy
-#add_caf_benchmark(caf_27_astar) bench uses busy waiting
+add_caf_benchmark(caf_27_astar) #bench uses busy waiting
 add_caf_benchmark(caf_28_nqueenk)
 add_caf_benchmark(caf_29_fib)
 add_caf_benchmark(caf_30_bitonicsort)
