@@ -33,6 +33,15 @@ find_package(CAF COMPONENTS core REQUIRED)
 set(LD_FLAGS ${LD_FLAGS} ${CAF_LIBRARIES})
 include_directories(${CAF_INCLUDE_DIRS})
 
+# load GMP libary
+# set(GMP_ROOT_DIR "path to gmp build directory")
+find_package(GMP)
+include_directories(${GMP_INCLUDE_DIRS} ${GMPXX_INCLUDE_DIRS})
+
+# load THREAD library
+find_package(Threads)
+set(LD_FLAGS ${LD_FLAGS} ${CMAKE_THREAD_LIBS_INIT})
+
 # add benchmark and helper classes
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/edu/rice/habanero/")
 include_directories(${INCLUDE_DIR})
@@ -89,6 +98,16 @@ add_caf_benchmark(caf_19_uct) #bench uses busy waiting
 add_caf_benchmark(caf_20_facloc)
 add_caf_benchmark(caf_21_trapezoid)
 #add_caf_benchmark(caf_22_piprecision) bench uses BigDecimal
+if(GMP_FOUND)
+  set(name_gmp caf_22_piprecision)
+  set(path_gmp ${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/edu/rice/habanero/benchmarks/caf/${name_gmp}.cpp)
+  set(LD_FLAGS ${LD_FLAGS} ${GMPXX_LIBRARY} ${GMP_LIBRARY})
+  add_executable(${name_gmp} ${path_gmp} "${INCLUDE_DIR}/benchmark.cpp")
+  target_link_libraries(${name_gmp} ${CAF_LIBRARIES} ${GMPXX_LIBRARY} ${LD_FLAGS})
+  add_dependencies(all_benchmarks ${name_gmp})
+else()
+  message(WARNING build without caf benchmark \"precise pi computation\", libary gmp not found)
+endif()
 add_caf_benchmark(caf_23_recmatmul)
 add_caf_benchmark(caf_24_quicksort)
 add_caf_benchmark(caf_25_apsp)
