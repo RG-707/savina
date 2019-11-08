@@ -90,7 +90,7 @@ behavior node_actor(stateful_actor<node_actor_states>* self,
       self->send(my_parent, update_grant_atom::value, my_array_id);
       int children_height = my_height + 1;
       for (int i = 0; i < binomial_param; ++i) {
-        s.has_grant_children.emplace_back(false);
+        s.has_grant_children.push_back(false);
         s.children.emplace_back(self->spawn(node_actor, self, my_root,
                                             children_height, current_id + i,
                                             comp_size, false, binomial_param));
@@ -215,7 +215,7 @@ behavior root_actor(stateful_actor<root_actor_states>* self,
             int computation_size
               = get_next_normal(s.random, avg_comp_size, stdev_comp_size);
             for (int i = 0; i < binomial_param; ++i) {
-              s.has_grant_children.emplace_back(false);
+              s.has_grant_children.push_back(false);
               s.children.emplace_back(
                 self->spawn(node_actor, self, self, s.height, s.size + i,
                             computation_size, false, binomial_param));

@@ -64,7 +64,7 @@ behavior arbitrator_actor(stateful_actor<arbitrator_actor_state>* self,
   auto& s = self->state;
   s.forks.reserve(num_forks);
   for (int i = 0; i < num_forks; ++i) {
-    s.forks.emplace_back(false); // fork not used
+    s.forks.push_back(false); // fork not used
   }
   return {[=](hungry_atom, int philosopher_id) {
             auto& s = self->state;
