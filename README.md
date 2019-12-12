@@ -29,12 +29,12 @@ October 2014.
 * <a href="http://liftweb.net/">Lift</a> 2.6-M4
 * <a href="http://docs.scala-lang.org/overviews/core/actors.html">Scala</a> 2.11.0
 * <a href="http://github.com/scalaz/scalaz">Scalaz</a> 7.1.0-M6.
-* <a href="https://github.com/actor-framework/actor-framework">CAF</a> 0.15.3
+* <a href="https://github.com/actor-framework/actor-framework">CAF</a> 0.17.3
 
 ## Requirements
   * Optional
     * Java + Scala + Maven
-    * [CAF]()
+    * CAF + GMP
 
 ## Compile Benchmarks
 * Java/Scala benchmarks
@@ -48,7 +48,7 @@ October 2014.
         cd savina
         mkdir build
         cd build
-        cmake [-DCAF_ROOT_DIR=/path/to/caf/build/directory] ..
+        cmake [-DCAF_ROOT_DIR=/path/to/caf/build/directory] [-DGMP_ROOT_DIR=/path/to/caf/build/directory] ..
         make
 
 ## Run Benchmarks
