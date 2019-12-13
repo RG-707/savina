@@ -26,7 +26,20 @@ public:
     return next_long() % exclusive_max;
   }
 
+  std::uint32_t next_uint(std::uint32_t exclusive_max) {
+    if (exclusive_max == 0) {
+      return static_cast<std::uint32_t>(next_ulong());
+    } else {
+      return static_cast<std::uint32_t>(next_ulong()) % exclusive_max;
+    }
+  }
+
   long long next_long() {
+    value_ = ((value_ * 1309) + 13849) & 65535;
+    return value_;
+  }
+
+  std::uint64_t next_ulong() {
     value_ = ((value_ * 1309) + 13849) & 65535;
     return value_;
   }

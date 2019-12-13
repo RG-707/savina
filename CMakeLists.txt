@@ -12,10 +12,10 @@ endif()
 
 # compiler setup
 if(NOT CMAKE_CXX_FLAGS)
-  set(CMAKE_CXX_FLAGS                   "-std=c++11 -Wextra -Wall -pedantic")
+  set(CMAKE_CXX_FLAGS                   "-std=c++11 -Wextra -Wall -pedantic -fsanitize=address -fno-omit-frame-pointer")
 endif()
 if(NOT CMAKE_CXX_FLAGS_DEBUG)
-  set(CMAKE_CXX_FLAGS_DEBUG             "-O0 -g")
+  set(CMAKE_CXX_FLAGS_DEBUG             "-O0 -g ")
 endif()
 if(NOT CMAKE_CXX_FLAGS_MINSIZEREL)
   set(CMAKE_CXX_FLAGS_MINSIZEREL        "-Os")
@@ -29,6 +29,7 @@ endif()
 
 # load CAF library
 # set(CAF_ROOT_DIR "path to caf build directory")
+message("CAF_ROOT_DIR: ${CAF_ROOT_DIR}")
 find_package(CAF COMPONENTS core REQUIRED)
 set(LD_FLAGS ${LD_FLAGS} ${CAF_LIBRARIES})
 include_directories(${CAF_INCLUDE_DIRS})
@@ -116,6 +117,7 @@ add_caf_benchmark(caf_27_astar) #bench uses busy waiting
 add_caf_benchmark(caf_28_nqueenk)
 add_caf_benchmark(caf_29_fib)
 add_caf_benchmark(caf_30_bitonicsort)
+add_caf_benchmark(caf_chatapp)
 
 string(TOUPPER "${CMAKE_BUILD_TYPE}" UPPER_BUILD_TYPE)
 set(ALL_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${UPPER_BUILD_TYPE}}")
