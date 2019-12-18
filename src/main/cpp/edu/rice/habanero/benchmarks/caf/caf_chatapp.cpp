@@ -31,6 +31,7 @@ using status_atom = caf::atom_constant<caf::atom("status")>;
 using finished_atom = caf::atom_constant<caf::atom("finished")>;
 using broadcast_atom = caf::atom_constant<caf::atom("broadcast")>;
 using confirm_atom = caf::atom_constant<caf::atom("confirm")>;
+using invitations_atom = caf::atom_constant<caf::atom("invitatio")>;
 
 enum action { post, leave, invite, compute, none };
 
@@ -112,8 +113,7 @@ struct chat_state {
   size_t invitations;
 };
 
-caf::behavior chat(caf::stateful_actor<chat_state>* self, size_t invitations) {
-  self->state.invitations = invitations;
+caf::behavior chat(caf::stateful_actor<chat_state>* self) {
   return {
     [=](post_atom, std::vector<std::uint8_t>& payload, caf::actor& directory) {
       auto& s = self->state;
@@ -129,15 +129,18 @@ caf::behavior chat(caf::stateful_actor<chat_state>* self, size_t invitations) {
     [=](acknowledge_atom, caf::actor& directory) {
       auto& s = self->state;
       s.acknowledgements--;
-      if (s.acknowledgements == 1) { //TODO check with pony: why ==1?
+      if (s.acknowledgements == 1) { // TODO check with pony: why ==1?
         self->send(directory, completed_atom::value);
       }
+    },
+    [=](invitations_atom, size_t invitations) {
+      self->state.invitations = invitations;
     },
     [=](join_atom, caf::actor& client, caf::actor& directory) {
       auto& s = self->state;
       s.members.emplace(client);
       s.invitations--;
-      if (s.invitations == 0) { //TODO check with pony: why ==1?
+      if (s.invitations == 0) { // TODO check with pony: why ==1?
         self->send(directory, completed_atom::value);
       }
     },
@@ -146,7 +149,7 @@ caf::behavior chat(caf::stateful_actor<chat_state>* self, size_t invitations) {
       s.members.erase(client);
       self->send(client, left_atom::value, self, did_logout);
       if (s.members.empty()) {
-        self->quit(); //TODO check with pony: stop actor here?
+        self->quit(); // TODO check with pony: stop actor here?
       }
     },
     [=](leave_atom, caf::actor& client, bool did_logout,
@@ -155,9 +158,10 @@ caf::behavior chat(caf::stateful_actor<chat_state>* self, size_t invitations) {
       s.members.erase(client);
       self->send(client, left_atom::value, self, did_logout, directory);
       if (s.members.empty()) {
-        self->quit(); //TODO check with pony: stop actor here?
+        self->quit(); // TODO check with pony: stop actor here?
       }
-    },};
+    },
+  };
 }
 
 struct client_state {
@@ -177,8 +181,14 @@ caf::behavior client(caf::stateful_actor<client_state>* self, std::uint64_t id,
       self->state.friends.emplace(client);
     },
     [=](logout_atom) {
-      for (auto& chat : self->state.chats) {
-        self->send(chat, leave_atom::value, self, true);
+      auto& s = self->state;
+      if (not s.chats.empty()) {
+        for (auto& chat : s.chats) {
+          self->send(chat, leave_atom::value, self, true);
+        }
+      } else {
+        self->send(s.directory, left_atom::value, s.id);
+        self->quit(); // TODO check with pony: stop actor here?
       }
     },
     [=](left_atom, caf::actor& chat, bool did_logout) {
@@ -187,7 +197,7 @@ caf::behavior client(caf::stateful_actor<client_state>* self, std::uint64_t id,
 
       if (s.chats.empty() && did_logout) {
         self->send(s.directory, left_atom::value, s.id);
-        self->quit(); //TODO check with pony: stop actor here?
+        self->quit(); // TODO check with pony: stop actor here?
       }
     },
     [=](left_atom, caf::actor& chat, bool did_logout, caf::actor& directory) {
@@ -197,7 +207,7 @@ caf::behavior client(caf::stateful_actor<client_state>* self, std::uint64_t id,
 
       if (s.chats.empty() && did_logout) {
         self->send(s.directory, left_atom::value, s.id);
-        self->quit(); //TODO check with pony: stop actor here?
+        self->quit(); // TODO check with pony: stop actor here?
       }
     },
     [=](invite_atom, caf::actor& chat, caf::actor& directory) {
@@ -216,10 +226,12 @@ caf::behavior client(caf::stateful_actor<client_state>* self, std::uint64_t id,
     },
     [=](act_atom, behavior_factory& behavior) {
       auto& s = self->state;
-      // caf::aout(self) << s.chats.size() << std::endl; //TODO check with pony: size always zero
+      // caf::aout(self) << s.chats.size() << std::endl; //TODO check with pony:
+      // size always zero
       caf::actor next_chat;
       if (s.chats.empty()) {
-        next_chat = self->spawn(chat, 0);
+        next_chat
+          = self->spawn(chat); // TODO check with pony: emplace in chats?
       } else {
         size_t index = static_cast<size_t>(pseudo_random(42).next_ulong())
                        % s.chats.size();
@@ -228,25 +240,26 @@ caf::behavior client(caf::stateful_actor<client_state>* self, std::uint64_t id,
 
       switch (behavior.apply()) {
         case action::post:
-          //caf::aout(self) << s.id << ": post" << std::endl;
+          // caf::aout(self) << s.id << ": post" << std::endl;
           self->send(next_chat, post_atom::value, std::vector<std::uint8_t>(),
                      s.directory);
           break;
         case action::leave:
-          //caf::aout(self) << s.id << ": leave" << std::endl;
+          // caf::aout(self) << s.id << ": leave" << std::endl;
           self->send(next_chat, leave_atom::value, self, false, s.directory);
           break;
         case action::compute:
-          //caf::aout(self) << s.id << ": compute" << std::endl;
+          // caf::aout(self) << s.id << ": compute" << std::endl;
           fibonacci(35);
           self->send(s.directory, completed_atom::value);
           break;
         case action::none:
-          //caf::aout(self) << s.id << ": none" << std::endl;
+          // caf::aout(self) << s.id << ": none" << std::endl;
           self->send(s.directory, completed_atom::value);
           break;
         case action::invite:
-          //caf::aout(self) << s.id << ": invite" << std::endl;
+          // caf::aout(self) << s.id << ": invite" << std::endl;
+          auto created = self->spawn(chat);
           std::vector<caf::actor> f;
           for (auto& i : s.friends) {
             f.push_back(i);
@@ -263,24 +276,27 @@ caf::behavior client(caf::stateful_actor<client_state>* self, std::uint64_t id,
             }
           }
 
-          auto created = self->spawn(chat, invitations);
-          for (auto& k : f) {
-            self->send(k, invite_atom::value, created, s.directory);
+          self->send(created, invitations_atom::value, invitations);
+
+          for (size_t i = 0; i < invitations; ++i) {
+            self->send(f[i], invite_atom::value, created, s.directory);
           }
           break;
       }
-    },};
+    },
+  };
 }
 
 struct directory_state {
+  size_t id;
   client_map clients;
   pseudo_random random{42};
   std::atomic_size_t completions{0};
   caf::actor poker = nullptr;
-  //std::atomic_size_t acts{0};
 };
 
-caf::behavior directory(caf::stateful_actor<directory_state>* self) {
+caf::behavior directory(caf::stateful_actor<directory_state>* self, size_t id) {
+  self->state.id = id;
   return {
     [=](set_poker_atom, caf::actor& poker) { self->state.poker = poker; },
     [=](login_atom, std::uint64_t id) {
@@ -313,7 +329,7 @@ caf::behavior directory(caf::stateful_actor<directory_state>* self) {
         if (s.poker != nullptr) {
           self->send(s.poker, finished_atom::value);
           s.poker = nullptr;
-          self->quit(); //TODO check with pony: stop actor here?
+          self->quit(); // TODO check with pony: stop actor here?
         }
       }
     },
@@ -322,19 +338,16 @@ caf::behavior directory(caf::stateful_actor<directory_state>* self) {
       s.completions += s.clients.size();
       for (auto& client : s.clients) {
         self->send(client.second, act_atom::value, factory);
-        //s.acts++;
       }
-      //caf::aout(self) << "broadcast: " << s.completions << " " << s.acts<< std::endl;
     },
     [=](completed_atom) {
       auto& s = self->state;
       s.completions--;
-      //caf::aout(self) << "directory completions: " << s.completions << std::endl;
-      if (s.completions == 1) { //TODO check with pony: why ==1?
-        //caf::aout(self) << "end dir" << std::endl;
+      if (s.completions == 1) { // TODO check with pony: why ==1?
         if (s.poker != nullptr) {
-          //caf::aout(self) << "send fin" << std::endl;
-          self->send(s.poker, finished_atom::value); //TODO check with pony: here maybe poke.completions?
+          self->send(s.poker,
+                     confirm_atom::value); // TODO check with pony: here maybe
+                                           // poke.completions?
         }
       }
     },
@@ -358,7 +371,7 @@ caf::behavior poker(caf::stateful_actor<poker_state>* self,
   auto& s = self->state;
   s.clients = clients;
   s.logouts = directories.size();
-  s.confirmations = directories.size() * static_cast<size_t>(turns); //TODO check with pony: why * turns?
+  s.confirmations = directories.size(); // TODO check with pony: why * turns?
   s.turns = turns;
   s.directories = directories;
   s.factory = factory;
@@ -383,8 +396,7 @@ caf::behavior poker(caf::stateful_actor<poker_state>* self,
     [=](confirm_atom) { // TODO when pony calls this?
       auto& s = self->state;
       s.confirmations--;
-      //caf::aout(self) << "poker confirmations: " << s.confirmations << std::endl;
-      if (s.confirmations == 1) { //TODO check with pony: why ==1?
+      if (s.confirmations == 1) { // TODO check with pony: why ==1?
         /**
          * The logout/teardown phase may only happen
          * after we know that all turns have been
@@ -399,18 +411,18 @@ caf::behavior poker(caf::stateful_actor<poker_state>* self,
     [=](finished_atom) {
       auto& s = self->state;
       s.logouts--;
-      //caf::aout(self) << "poker logouts: " << s.logouts << std::endl;
-      if (s.logouts == 1) { //TODO check with pony: why ==1?
+      if (s.logouts == 1) { // TODO check with pony: why ==1?
         caf::aout(self) << "finish poker" << std::endl;
         self->send(s.bench, finished_atom::value);
         self->quit();
       }
-    }};
+    },
+  };
 }
 
 struct config : caf::actor_system_config {
   std::uint64_t clients = 256; // 256;
-  std::uint64_t turns = 20;  // 20;
+  std::uint64_t turns = 20;    // 20;
   config() {
     add_message_type<behavior_factory>("behavior_factory");
   }
@@ -435,7 +447,7 @@ public:
     auto factory = behavior_factory(compute_, post_, leave_, invite_);
     std::vector<caf::actor> dirs;
     for (size_t i = 0; i < directories_; ++i) {
-      dirs.push_back(system.spawn(directory));
+      dirs.push_back(system.spawn(directory, i));
     }
     {
       caf::scoped_actor self{system};
