@@ -15,7 +15,7 @@ public class BenchmarkRunner {
     public static final String argOutputFormat = "%25s = %-10s \n";
     protected static final double tolerance = 0.20;
 
-    protected static int iterations = 12;
+    protected static int iterations = 10;
 
     private static void parseArgs(final String[] args) throws Exception {
 
