@@ -8,6 +8,20 @@
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
 
+struct facility_msg;
+struct customer_msg;
+struct confirm_exit_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(facloc, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(facloc, (facility_msg))
+CAF_ADD_TYPE_ID(facloc, (customer_msg))
+CAF_ADD_TYPE_ID(facloc, (confirm_exit_msg))
+CAF_ADD_ATOM(facloc, next_customer_msg_atom)
+CAF_ADD_ATOM(facloc, request_exit_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(facloc)
+
 using namespace std;
 using std::chrono::seconds;
 using namespace caf;
@@ -25,6 +39,7 @@ public:
   // static bool debug;
 
   config() {
+    init_global_meta_objects<facloc_type_ids>();
     opt_group{custom_options_, "global"}
       .add(num_points, "nnn,n", "number of points")
       .add(grid_size, "ggg,g", "grid size")
@@ -138,23 +153,29 @@ struct facility_msg {
   point point_value;
   bool from_child;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(facility_msg);
-
-using next_customer_msg_atom = atom_constant<atom("next")>;
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, facility_msg& x) {
+  return f(meta::type_name("facility_msg"), x.position_relative_to_parent,
+    x.depth, x.point_value, x.from_child);
+}
 
 struct customer_msg {
   actor producer;
   point point_value;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(customer_msg);
-
-using request_exit_msg_atom = atom_constant<atom("rexit")>;
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, customer_msg& x) {
+  return f(meta::type_name("customer_msg"), x.producer, x.point_value);
+}
 
 struct confirm_exit_msg {
   int facilities;
   int support_customers;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(confirm_exit_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, confirm_exit_msg& x) {
+  return f(meta::type_name("customer_msg"), x.facilities, x.support_customers);
+}
 
 struct producer_actor_state {
   int items_produced;
@@ -174,7 +195,7 @@ behavior producer_actor_fun(stateful_actor<producer_actor_state>* self,
     if (self->state.items_produced < config::num_points) {
       produce_customer();
     } else {
-      self->send(consumer, request_exit_msg_atom::value);
+      self->send(consumer, request_exit_msg_atom_v);
       self->quit();
     }
   }};
@@ -319,7 +340,7 @@ behavior quadrant_actor_fun(stateful_actor<quadrant_actor_state>* self,
             }
             if (!parent) {
               // request next customer
-              self->send(customer.producer, next_customer_msg_atom::value);
+              self->send(customer.producer, next_customer_msg_atom_v);
             }
           },
           [=](facility_msg& facility) {

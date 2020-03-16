@@ -6,6 +6,16 @@
 
 #include "benchmark_runner.hpp"
 
+struct work_msg;
+struct result_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(trapezoid, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(trapezoid, (work_msg))
+CAF_ADD_TYPE_ID(trapezoid, (result_msg))
+
+CAF_END_TYPE_ID_BLOCK(trapezoid)
+
 using namespace std;
 using std::chrono::seconds;
 using namespace caf;
@@ -19,6 +29,7 @@ public:
   static bool debug; // = false;
 
   config() {
+    init_global_meta_objects<trapezoid_type_ids>();
     opt_group{custom_options_, "global"}
       .add(n, "nnn,n", "number of pieces")
       .add(w, "www,w", " number of wokers")
@@ -43,13 +54,19 @@ struct work_msg {
   double r;
   double h;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(work_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, work_msg& x) {
+  return f(meta::type_name("work_msg"), x.l, x.r, x.h);
+}
 
 struct result_msg {
   double result;
   int worker_id;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(result_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, result_msg& x) {
+  return f(meta::type_name("work_msg"), x.result, x.worker_id);
+}
 
 behavior worker_fun(event_based_actor* self, actor master, int id) {
   return {[=](work_msg& wm) {

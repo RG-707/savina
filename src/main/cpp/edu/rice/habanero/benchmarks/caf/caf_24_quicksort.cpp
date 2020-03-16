@@ -5,8 +5,17 @@
 #include <vector>
 
 #include "benchmark_runner.hpp"
-
 #include "pseudo_random.hpp"
+
+struct sort_msg;
+struct result_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(quicksort, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(quicksort, (sort_msg))
+CAF_ADD_TYPE_ID(quicksort, (result_msg))
+
+CAF_END_TYPE_ID_BLOCK(quicksort)
 
 using namespace std;
 using std::chrono::seconds;
@@ -20,6 +29,7 @@ public:
   static long s; //= 1024;
 
   config() {
+    init_global_meta_objects<quicksort_type_ids>();
     opt_group{custom_options_, "global"}
       .add(n, "nnn,n", "data size")
       .add(m, "mmm,m", "max value")
@@ -124,13 +134,19 @@ enum class position_enum { right, left, initial };
 struct sort_msg {
   vector<long> data;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(sort_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, sort_msg& x) {
+  return f(meta::type_name("sort_msg"), x.data);
+}
 
 struct result_msg {
   vector<long> data;
   position_enum positon;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(result_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, result_msg& x) {
+  return f(meta::type_name("result_msg"), x.data, x.positon);
+}
 
 struct quick_sort_actor_state {
   vector<long> result;

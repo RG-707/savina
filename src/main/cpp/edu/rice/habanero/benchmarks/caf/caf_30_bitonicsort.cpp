@@ -7,6 +7,20 @@
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
 
+struct next_actor_msg;
+struct value_msg;
+struct data_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(bitonicsort, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(bitonicsort, (next_actor_msg))
+CAF_ADD_TYPE_ID(bitonicsort, (value_msg))
+CAF_ADD_TYPE_ID(bitonicsort, (data_msg))
+CAF_ADD_ATOM(bitonicsort, start_msg_atom)
+CAF_ADD_ATOM(bitonicsort, exit_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(bitonicsort)
+
 using namespace std;
 using std::chrono::seconds;
 using namespace caf;
@@ -19,6 +33,7 @@ public:
   static bool debug;
 
   config() {
+    init_global_meta_objects<bitonicsort_type_ids>();
     opt_group{custom_options_, "global"}
       .add(n, "nnn,n", "data size (must be power of 2)")
       .add(m, "mmm,m", "max values")
@@ -34,21 +49,27 @@ bool config::debug = false;
 struct next_actor_msg {
   actor next_actor;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(next_actor_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, next_actor_msg& x) {
+  return f(meta::type_name("next_actor_msg"), x.next_actor);
+}
 
 struct value_msg {
   long value;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(value_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, value_msg& x) {
+  return f(meta::type_name("value_msg"), x.value);
+}
 
 struct data_msg {
   int order_id;
   long value;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(data_msg);
-
-using start_msg_atom = atom_constant<atom("start")>;
-using exit_msg_atom = atom_constant<atom("exit")>;
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, data_msg& x) {
+  return f(meta::type_name("data_msg"), x.order_id, x.value);
+}
 
 // forward declatrions
 behavior value_data_adapter_actor_fun(event_based_actor* self, int order_id,
@@ -463,7 +484,7 @@ behavior int_source_actor_fun(stateful_actor<init_source_actor_state>* self,
     if (config::debug) {
       cout << "  SOURCE: " << s.sb.str() << endl;
     }
-    self->send(next_actor, exit_msg_atom::value);
+    self->send(next_actor, exit_msg_atom_v);
     self->quit();
   }};
 }
@@ -535,7 +556,7 @@ public:
                                      true, adapter_actor);
     auto source_actor = system.spawn(int_source_actor_fun, cfg_.n, cfg_.m,
                                      cfg_.s, kernel_actor);
-    anon_send(source_actor, start_msg_atom::value);
+    anon_send(source_actor, start_msg_atom_v);
     system.await_all_actors_done();
   }
 

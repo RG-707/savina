@@ -6,6 +6,16 @@
 
 #include "benchmark_runner.hpp"
 
+struct request;
+struct response;
+
+CAF_BEGIN_TYPE_ID_BLOCK(fib, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(fib, (request))
+CAF_ADD_TYPE_ID(fib, (response))
+
+CAF_END_TYPE_ID_BLOCK(fib)
+
 using namespace std;
 using std::chrono::seconds;
 using namespace caf;
@@ -15,6 +25,7 @@ public:
   int n = 25;
 
   config() {
+    init_global_meta_objects<fib_type_ids>();
     opt_group{custom_options_, "global"}.add(n, "nnn,n",
                                              "number of fib numbers");
   }
@@ -23,12 +34,18 @@ public:
 struct request {
   int n;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(request);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, request& x) {
+  return f(meta::type_name("request"), x.n);
+}
 
 struct response {
   int value;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(response);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, response& x) {
+  return f(meta::type_name("response"), x.value);
+}
 
 constexpr auto respone_one = response{1};
 

@@ -4,6 +4,17 @@
 
 #include "benchmark_runner.hpp"
 
+struct work_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(nqueenk, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(nqueenk, (work_msg))
+CAF_ADD_ATOM(nqueenk, done_msg_atom)
+CAF_ADD_ATOM(nqueenk, result_msg_atom)
+CAF_ADD_ATOM(nqueenk, stop_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(nqueenk)
+
 using namespace std;
 using namespace caf;
 
@@ -40,6 +51,7 @@ public:
   static int solutions_limit;
 
   config() {
+    init_global_meta_objects<nqueenk_type_ids>();
     opt_group{custom_options_, "global"}
       .add(size, "nnn,n", "size of the chess board")
       .add(num_workers, "www,w", "number of workers")
@@ -79,18 +91,17 @@ struct work_msg {
   vector<int> data;
   int depth;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(work_msg);
-
-using done_msg_atom = atom_constant<atom("done")>;
-using result_msg_atom = atom_constant<atom("result")>;
-using stop_msg_atom = atom_constant<atom("stop")>;
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, work_msg& x) {
+  return f(meta::type_name("work_msg"), x.priority, x.data, x.depth);
+}
 
 // calc N-Queens problem sequential
 // recusive function cannot be defined as lambda function
 void nqueens_kernel_seq(event_based_actor* self, actor master, int size,
                         const vector<int>& a, int depth) {
   if (size == depth)
-    self->send(master, result_msg_atom::value);
+    self->send(master, result_msg_atom_v);
   else {
     for (int i = 0; i < size; ++i) {
       auto b = a;
@@ -110,7 +121,7 @@ behavior worker_fun(event_based_actor* self, actor master, int /*id*/) {
     auto& a = msg.data;
     auto& depth = msg.depth;
     if (size == depth)
-      self->send(master, result_msg_atom::value);
+      self->send(master, result_msg_atom_v);
     else if (depth >= threshold)
       nqueens_kernel_seq(self, master, size, a, depth);
     else {
@@ -127,10 +138,10 @@ behavior worker_fun(event_based_actor* self, actor master, int /*id*/) {
   };
   return {[=](work_msg& msg) {
             nqueens_kernel_par(move(msg));
-            self->send(master, done_msg_atom::value);
+            self->send(master, done_msg_atom_v);
           },
           [=](stop_msg_atom) {
-            self->send(master, stop_msg_atom::value);
+            self->send(master, stop_msg_atom_v);
             self->quit();
           }};
 }
@@ -159,7 +170,7 @@ behavior master_fun(stateful_actor<master_data>* self, int num_workers,
   auto request_workers_to_terminate = [=]() {
     auto& s = self->state;
     for (auto& e : s.workers) {
-      self->send(e, stop_msg_atom::value);
+      self->send(e, stop_msg_atom_v);
     }
   };
   auto& s = self->state;

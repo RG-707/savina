@@ -6,6 +6,15 @@
 
 #include "benchmark_runner.hpp"
 
+struct long_box;
+
+CAF_BEGIN_TYPE_ID_BLOCK(sieve, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(sieve, (long_box))
+CAF_ADD_ATOM(sieve, data_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(sieve)
+
 using namespace std;
 using std::chrono::seconds;
 using namespace caf;
@@ -17,6 +26,7 @@ public:
   static bool debug; // = false;
 
   config() {
+    init_global_meta_objects<sieve_type_ids>();
     opt_group{custom_options_, "global"}
       .add(n, "nnn,n", "search limit for primes")
       .add(m, "mmm,m", "maximum primes storage capacity per actor")
@@ -28,7 +38,10 @@ bool config::debug = false;
 struct long_box {
   long value;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(long_box);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, long_box& x) {
+  return f(meta::type_name("long_box"), x.value);
+}
 
 bool is_locally_prime(long candidate, const vector<long>& local_primes,
                       int start_inc, int end_exc) {

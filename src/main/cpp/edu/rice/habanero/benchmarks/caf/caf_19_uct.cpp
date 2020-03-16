@@ -1,8 +1,22 @@
-#include <atomic>
-#include <caf/atom.hpp>
-
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
+
+CAF_BEGIN_TYPE_ID_BLOCK(uct, first_custom_type_id)
+
+CAF_ADD_ATOM(uct, start_atom)
+CAF_ADD_ATOM(uct, exit_atom)
+CAF_ADD_ATOM(uct, print_info_atom)
+CAF_ADD_ATOM(uct, get_id_atom)
+CAF_ADD_ATOM(uct, generate_tree_atom)
+CAF_ADD_ATOM(uct, update_grant_atom)
+CAF_ADD_ATOM(uct, try_generate_children_atom)
+CAF_ADD_ATOM(uct, should_generate_children_atom)
+CAF_ADD_ATOM(uct, generate_children_atom)
+CAF_ADD_ATOM(uct, urgent_generate_children_atom)
+CAF_ADD_ATOM(uct, traverse_atom)
+CAF_ADD_ATOM(uct, urgent_traverse_atom)
+
+CAF_END_TYPE_ID_BLOCK(uct)
 
 using namespace std;
 using namespace caf;
@@ -16,6 +30,7 @@ public:
   int urgent_node_percent = 50;
 
   config() {
+    init_global_meta_objects<uct_type_ids>();
     opt_group{custom_options_, "global"}
       .add(max_nodes, "max,m", "maximum nodes")
       .add(avg_comp_size, "avg,a", "average computation size")
@@ -27,19 +42,6 @@ public:
       .add(urgent_node_percent, "urg,u", "percentage of urgent nodes");
   }
 };
-
-using start_atom = atom_constant<atom("start")>;
-using exit_atom = atom_constant<atom("exit")>;
-using print_info_atom = atom_constant<atom("print")>;
-using get_id_atom = atom_constant<atom("get_id")>;
-using generate_tree_atom = atom_constant<atom("gen_tree")>;
-using update_grant_atom = atom_constant<atom("up_grant")>;
-using try_generate_children_atom = atom_constant<atom("trygenchi")>;
-using should_generate_children_atom = atom_constant<atom("sgc_msg")>;
-using generate_children_atom = atom_constant<atom("gen_child")>;
-using urgent_generate_children_atom = atom_constant<atom("urggenchi")>;
-using traverse_atom = atom_constant<atom("traverse")>;
-using urgent_traverse_atom = atom_constant<atom("utraverse")>;
 
 int busy_wait(const int limit, const int dummy) {
   int test = 0;
@@ -80,14 +82,14 @@ behavior node_actor(stateful_actor<node_actor_states>* self,
     [=](try_generate_children_atom) {
       CAF_LOG_DEBUG("node_actor " << my_id << ": try generate children.");
       busy_wait(100, dummy);
-      self->send(my_root, should_generate_children_atom::value, self,
+      self->send(my_root, should_generate_children_atom_v, self,
                  my_height);
     },
     [=](generate_children_atom, const int current_id, const int comp_size) {
       CAF_LOG_DEBUG("node_actor " << my_id << ": generate children.");
       auto& s = self->state;
       int my_array_id = my_id % binomial_param;
-      self->send(my_parent, update_grant_atom::value, my_array_id);
+      self->send(my_parent, update_grant_atom_v, my_array_id);
       int children_height = my_height + 1;
       for (int i = 0; i < binomial_param; ++i) {
         s.has_grant_children.push_back(false);
@@ -97,7 +99,7 @@ behavior node_actor(stateful_actor<node_actor_states>* self,
       }
       s.has_children = true;
       for (int j = 0; j < binomial_param; ++j) {
-        self->send(s.children.at(j), try_generate_children_atom::value);
+        self->send(s.children.at(j), try_generate_children_atom_v);
       }
     },
     [=](urgent_generate_children_atom, const int urgent_child_id,
@@ -105,7 +107,7 @@ behavior node_actor(stateful_actor<node_actor_states>* self,
       CAF_LOG_DEBUG("node_actor " << my_id << ": urgent generate children.");
       auto& s = self->state;
       int my_array_id = my_id % binomial_param;
-      self->send(my_parent, update_grant_atom::value, my_array_id);
+      self->send(my_parent, update_grant_atom_v, my_array_id);
       int children_height = my_height + 1;
       s.urgent_child = urgent_child_id;
       for (int i = 0; i < binomial_param; ++i) {
@@ -126,7 +128,7 @@ behavior node_actor(stateful_actor<node_actor_states>* self,
       busy_wait(my_computation_size, dummy);
       if (s.has_children) {
         for (int i = 0; i < binomial_param; ++i) {
-          self->send(s.children.at(i), traverse_atom::value);
+          self->send(s.children.at(i), traverse_atom_v);
         }
       }
     },
@@ -140,15 +142,15 @@ behavior node_actor(stateful_actor<node_actor_states>* self,
         if (s.urgent_child != -1) {
           for (int i = 0; i < binomial_param; ++i) {
             if (i != s.urgent_child) {
-              self->send(s.children.at(i), traverse_atom::value);
+              self->send(s.children.at(i), traverse_atom_v);
             } else {
               self->send(s.children.at(s.urgent_child),
-                         urgent_traverse_atom::value);
+                         urgent_traverse_atom_v);
             }
           }
         } else {
           for (int i = 0; i < binomial_param; ++i) {
-            self->send(s.children.at(i), traverse_atom::value);
+            self->send(s.children.at(i), traverse_atom_v);
           }
         }
         if (is_urgent) {
@@ -172,7 +174,7 @@ behavior node_actor(stateful_actor<node_actor_states>* self,
         aout(self) << my_id << " " << my_computation_size
                    << "  children starts " << endl;
         for (int i = 0; i < binomial_param; ++i) {
-          self->send(s.children.at(i), print_info_atom::value);
+          self->send(s.children.at(i), print_info_atom_v);
         }
       } else {
         aout(self) << my_id << " " << my_computation_size << endl;
@@ -186,7 +188,7 @@ behavior node_actor(stateful_actor<node_actor_states>* self,
       auto& s = self->state;
       if (s.has_children) {
         for (int i = 0; i < binomial_param; ++i) {
-          self->send(s.children.at(i), exit_atom::value);
+          self->send(s.children.at(i), exit_atom_v);
         }
       }
       self->quit();
@@ -222,7 +224,7 @@ behavior root_actor(stateful_actor<root_actor_states>* self,
             }
             s.size += binomial_param;
             for (int j = 0; j < binomial_param; ++j) {
-              self->send(s.children.at(j), try_generate_children_atom::value);
+              self->send(s.children.at(j), try_generate_children_atom_v);
             }
           },
           [=](update_grant_atom, int id) {
@@ -238,10 +240,10 @@ behavior root_actor(stateful_actor<root_actor_states>* self,
                   = get_next_normal(s.random, avg_comp_size, stdev_comp_size);
                 int random_int = s.random.next_int(100);
                 if (random_int > urgent_node_percent) {
-                  self->send(sender, generate_children_atom::value, s.size,
+                  self->send(sender, generate_children_atom_v, s.size,
                              child_comp);
                 } else {
-                  self->send(sender, urgent_generate_children_atom::value,
+                  self->send(sender, urgent_generate_children_atom_v,
                              s.random.next_int(binomial_param), s.size,
                              child_comp);
                 }
@@ -263,11 +265,11 @@ behavior root_actor(stateful_actor<root_actor_states>* self,
               if (!s.traversed) {
                 s.traversed = true;
                 for (int i = 0; i < binomial_param; ++i) {
-                  self->send(s.children.at(i), traverse_atom::value);
+                  self->send(s.children.at(i), traverse_atom_v);
                 }
               }
               for (int j = 0; j < binomial_param; ++j) {
-                self->send(s.children.at(j), exit_atom::value);
+                self->send(s.children.at(j), exit_atom_v);
               }
               self->quit();
             }
@@ -275,13 +277,13 @@ behavior root_actor(stateful_actor<root_actor_states>* self,
           [=](print_info_atom) {
             CAF_LOG_DEBUG("root_actor: print info.");
             for (int i = 0; i < binomial_param; ++i) {
-              self->send(self->state.children.at(i), print_info_atom::value);
+              self->send(self->state.children.at(i), print_info_atom_v);
             }
           },
           [=](exit_atom) {
             CAF_LOG_DEBUG("root_actor: exited.");
             for (int i = 0; i < binomial_param; ++i) {
-              self->send(self->state.children.at(i), exit_atom::value);
+              self->send(self->state.children.at(i), exit_atom_v);
             }
             self->quit();
           }
@@ -315,7 +317,7 @@ public:
                              cfg_.stdev_comp_size, cfg_.binomial_param,
                              cfg_.max_nodes, cfg_.urgent_node_percent);
 
-    anon_send(root, generate_tree_atom::value);
+    anon_send(root, generate_tree_atom_v);
 
     system.await_all_actors_done();
   }

@@ -7,6 +7,17 @@
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
 
+struct work_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(recmatmul, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(recmatmul, (work_msg))
+CAF_ADD_ATOM(recmatmul, done_msg_atom)
+CAF_ADD_ATOM(recmatmul, stop_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(recmatmul)
+
+
 using namespace std;
 using std::chrono::seconds;
 using namespace caf;
@@ -48,6 +59,7 @@ public:
   static matrix2d<double> b;
   static matrix2d<double> c;
   config() {
+    init_global_meta_objects<recmatmul_type_ids>();
     opt_group{custom_options_, "global"}
       .add(data_length, "nnn,n", "data length")
       .add(block_threshold, "ttt,t", "block_trheshold")
@@ -108,10 +120,11 @@ struct work_msg {
   int num_blocks;
   int dim;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(work_msg);
-
-using done_msg_atom = atom_constant<atom("done")>;
-using stop_msg_atom = atom_constant<atom("stop")>;
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, work_msg& x) {
+  return f(meta::type_name("work_msg"), x.priority, x.sr_a, x.sc_a, x.sr_b,
+    x.sc_b, x.sr_c, x.sc_c, x.num_blocks, x.dim);
+}
 
 void my_rec_mat(int& threshold, event_based_actor* self, actor& master,
                 work_msg& work_message) {
@@ -181,7 +194,7 @@ behavior worker_fun(event_based_actor* self, actor master, int /*id*/) {
   return {
     [=](work_msg& work_message) mutable {
       my_rec_mat(threshold, self, master, work_message);
-      self->send(master, done_msg_atom::value);
+      self->send(master, done_msg_atom_v);
     },
     [=](stop_msg_atom the_msg) {
       self->send(master, the_msg);
@@ -227,7 +240,7 @@ behavior master_fun(stateful_actor<master_state>* self) {
             ++s.num_work_completed;
             if (s.num_work_completed == s.num_work_sent) {
               for (int i = 0; i < s.num_workers; ++i) {
-                self->send(s.workers[i], stop_msg_atom::value);
+                self->send(s.workers[i], stop_msg_atom_v);
               }
             }
           },

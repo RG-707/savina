@@ -9,6 +9,17 @@
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
 
+CAF_BEGIN_TYPE_ID_BLOCK(astar, first_custom_type_id)
+
+CAF_ADD_ATOM(astar, start_atom)
+CAF_ADD_ATOM(astar, exit_atom)
+CAF_ADD_ATOM(astar, work_atom)
+CAF_ADD_ATOM(astar, received_atom)
+CAF_ADD_ATOM(astar, done_atom)
+CAF_ADD_ATOM(astar, stop_atom)
+
+CAF_END_TYPE_ID_BLOCK(astar)
+
 using namespace std;
 using namespace caf;
 
@@ -21,6 +32,7 @@ public:
   int threshold = 1024;
 
   config() {
+    init_global_meta_objects<astar_type_ids>();
     opt_group{custom_options_, "global"}
       .add(priority_granularity, "pgg,g", "priority granularity")
       .add(num_worker, "www,w", "num worker")
@@ -29,13 +41,6 @@ public:
       .add(threshold, "ttt,t", "threshold");
   }
 };
-
-using start_atom = atom_constant<atom("start")>;
-using exit_atom = atom_constant<atom("exit")>;
-using work_atom = atom_constant<atom("work")>;
-using received_atom = atom_constant<atom("received")>;
-using done_atom = atom_constant<atom("done")>;
-using stop_atom = atom_constant<atom("stop")>;
 
 class grid_node;
 bool operator==(const grid_node& x, const grid_node& y);
@@ -147,8 +152,8 @@ behavior worker_actor(event_based_actor* self, const actor& master, int id,
                 if (success) {
                   if (loop_neighbor == grid.at(target_id)) {
                     CAF_LOG_DEBUG("worker" << id << ": work done");
-                    self->send(master, done_atom::value);
-                    self->send(master, received_atom::value);
+                    self->send(master, done_atom_v);
+                    self->send(master, received_atom_v);
                     return;
                   } else {
                     work_queue.push(loop_neighbor->id());
@@ -159,16 +164,16 @@ behavior worker_actor(event_based_actor* self, const actor& master, int id,
 
             while (!work_queue.empty()) {
               CAF_LOG_DEBUG("worker " << id << ": get new work");
-              self->send(master, work_atom::value, work_queue.front(),
+              self->send(master, work_atom_v, work_queue.front(),
                          target_id);
               work_queue.pop();
             }
             CAF_LOG_DEBUG("worker " << id << ": work done");
-            self->send(master, received_atom::value);
+            self->send(master, received_atom_v);
           },
           [=](stop_atom) {
             CAF_LOG_DEBUG("worker " << id << ": quiting");
-            self->send(master, stop_atom::value);
+            self->send(master, stop_atom_v);
             self->quit();
           }};
 }
@@ -193,7 +198,7 @@ behavior master_actor(stateful_actor<master_states>* self, const int num_worker,
             auto& s = self->state;
             int worker_index = s.num_work_send % num_worker;
             s.num_work_send++;
-            self->send(s.worker.at(worker_index), work_atom::value, node_id,
+            self->send(s.worker.at(worker_index), work_atom_v, node_id,
                        target_id);
           },
           [=](received_atom) {
@@ -202,14 +207,14 @@ behavior master_actor(stateful_actor<master_states>* self, const int num_worker,
             s.num_work_completed++;
             if (s.num_work_completed == s.num_work_send) {
               for (auto& worker : s.worker) {
-                self->send(worker, stop_atom::value);
+                self->send(worker, stop_atom_v);
               }
             }
           },
           [=](done_atom) {
             CAF_LOG_DEBUG("master: done");
             for (auto& worker : self->state.worker) {
-              self->send(worker, stop_atom::value);
+              self->send(worker, stop_atom_v);
             }
           },
           [=](stop_atom) {
@@ -298,7 +303,7 @@ public:
     auto axis_val = static_cast<int>(0.80 * cfg_.grid_size);
     int target_id = (axis_val * cfg_.grid_size * cfg_.grid_size)
                     + (axis_val * cfg_.grid_size) + axis_val;
-    anon_send(master, work_atom::value, 0, target_id);
+    anon_send(master, work_atom_v, 0, target_id);
     system.await_all_actors_done();
 
     int nodes_processed = 1;

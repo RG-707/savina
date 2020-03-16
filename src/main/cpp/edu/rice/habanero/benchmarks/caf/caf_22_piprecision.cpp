@@ -7,10 +7,18 @@
 
 #include "benchmark_runner.hpp"
 
+CAF_BEGIN_TYPE_ID_BLOCK(piprecision, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(piprecision, (mpf_class))
+CAF_ADD_ATOM(piprecision, start_atom)
+CAF_ADD_ATOM(piprecision, stop_atom)
+CAF_ADD_ATOM(piprecision, work_atom)
+CAF_ADD_ATOM(piprecision, result_atom)
+
+CAF_END_TYPE_ID_BLOCK(piprecision)
+
 using namespace std;
 using namespace caf;
-
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(mpf_class)
 
 class config : public actor_system_config {
 public:
@@ -18,16 +26,14 @@ public:
   int precision = 5000;
 
   config() {
+    init_global_meta_objects<piprecision_type_ids>();
     opt_group{custom_options_, "global"}
       .add(num_workers, "nnn,n", "number of workers")
       .add(precision, "ppp,p", "precision");
   }
 };
 
-using start_atom = atom_constant<atom("start")>;
-using stop_atom = atom_constant<atom("stop")>;
-using work_atom = atom_constant<atom("work")>;
-using result_atom = atom_constant<atom("result")>;
+//TODO Inspector for mpf_class
 
 /// Formula: http://mathworld.wolfram.com/BBPFormula.html
 mpf_class calculate_bbp_term(const int precision, const int k) {
@@ -48,13 +54,13 @@ mpf_class calculate_bbp_term(const int precision, const int k) {
 
 behavior worker_actor(event_based_actor* self, const actor& master, int id) {
   return {[=](stop_atom) {
-            self->send(master, stop_atom::value);
+            self->send(master, stop_atom_v);
             CAF_LOG_DEBUG("worker: " << id << " quitting");
             self->quit();
           },
           [=](work_atom, const int precision, const int term) {
             auto result = calculate_bbp_term(precision, term);
-            self->send(master, result_atom::value, result, id);
+            self->send(master, result_atom_v, result, id);
           }};
 }
 
@@ -86,13 +92,13 @@ behavior master_actor(stateful_actor<master_states>* self,
               s.stop_requests = true;
             }
             if (!s.stop_requests) {
-              self->send(s.workers.at(worker_id), work_atom::value, precision,
+              self->send(s.workers.at(worker_id), work_atom_v, precision,
                          s.num_term_requested);
               s.num_term_requested++;
             }
             if (s.num_term_received == s.num_term_requested) {
               for (auto& worker : s.workers) {
-                self->send(worker, stop_atom::value);
+                self->send(worker, stop_atom_v);
               }
             }
           },
@@ -107,7 +113,7 @@ behavior master_actor(stateful_actor<master_states>* self,
           [=](start_atom) {
             auto& s = self->state;
             for (int t = 0; t < min(precision, 10 * num_workers); ++t) {
-              self->send(s.workers.at(t % num_workers), work_atom::value,
+              self->send(s.workers.at(t % num_workers), work_atom_v,
                          precision, s.num_term_requested);
               s.num_term_requested++;
             }
@@ -132,7 +138,7 @@ public:
     actor_system system{cfg_};
 
     auto master = system.spawn(master_actor, cfg_.num_workers, cfg_.precision);
-    anon_send(master, start_atom::value);
+    anon_send(master, start_atom_v);
     system.await_all_actors_done();
     cout << "done" << endl;
   }

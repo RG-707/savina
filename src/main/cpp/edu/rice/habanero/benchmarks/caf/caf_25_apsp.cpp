@@ -7,6 +7,17 @@
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
 
+struct apsp_result_msg;
+struct apsp_neighbor_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(apsp, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(apsp, (apsp_result_msg))
+CAF_ADD_TYPE_ID(apsp, (apsp_neighbor_msg))
+CAF_ADD_ATOM(apsp, apsp_initial_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(apsp)
+
 using namespace std;
 using std::chrono::seconds;
 using namespace caf;
@@ -18,6 +29,7 @@ public:
   static int w; // = 100;
 
   config() {
+    init_global_meta_objects<apsp_type_ids>();
     opt_group{custom_options_, "global"}
       .add(n, "nnn,n", "number of workers")
       .add(b, "bbb,b", "block size")
@@ -104,19 +116,23 @@ struct apsp_utils {
   //}
 };
 
-using apsp_initial_msg_atom = atom_constant<atom("init")>;
-
 struct apsp_result_msg {
   int k;
   int my_block_id;
   arr2l init_data;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(apsp_result_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, apsp_result_msg& x) {
+  return f(meta::type_name("apsp_result_msg"), x.k, x.my_block_id, x.init_data);
+}
 
 struct apsp_neighbor_msg {
   list<actor> neighbors;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(apsp_neighbor_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, apsp_neighbor_msg& x) {
+  return f(meta::type_name("apsp_neighbor_msg"), x.neighbors);
+}
 
 struct apsp_floyd_warshall_actor_state {
   int num_blocks_in_single_dim;
@@ -278,7 +294,7 @@ public:
     // start the computation
     for (int bi = 0; bi < num_blocks_in_single_dim; ++bi) {
       for (int bj = 0; bj < num_blocks_in_single_dim; ++bj) {
-        anon_send(block_actors[bi][bj], apsp_initial_msg_atom::value);
+        anon_send(block_actors[bi][bj], apsp_initial_msg_atom_v);
       }
     }
   }
