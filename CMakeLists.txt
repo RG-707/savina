@@ -12,7 +12,7 @@ endif()
 
 # compiler setup
 if(NOT CMAKE_CXX_FLAGS)
-  set(CMAKE_CXX_FLAGS                   "-std=c++11 -Wextra -Wall -pedantic")
+  set(CMAKE_CXX_FLAGS                   "-std=c++17 -Wextra -Wall -pedantic")
 endif()
 if(NOT CMAKE_CXX_FLAGS_DEBUG)
   set(CMAKE_CXX_FLAGS_DEBUG             "-O0 -g")

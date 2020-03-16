@@ -6,6 +6,21 @@
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
 
+struct write_msg;
+struct contains_msg;
+struct size_msg;
+struct result_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(concsll, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(concsll, (write_msg))
+CAF_ADD_TYPE_ID(concsll, (contains_msg))
+CAF_ADD_TYPE_ID(concsll, (size_msg))
+CAF_ADD_TYPE_ID(concsll, (result_msg))
+CAF_ADD_ATOM(concsll, end_work_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(concsll)
+
 using namespace std;
 using namespace caf;
 
@@ -17,6 +32,7 @@ public:
   static int size_percentage;  // = 1;
 
   config() {
+    init_global_meta_objects<concsll_type_ids>();
     opt_group{custom_options_, "global"}
       .add(num_entities, "eee,e", "number of entities")
       .add(num_msgs_per_worker, "mmm,m", "number of messges per worker")
@@ -31,28 +47,37 @@ struct write_msg {
   actor sender;
   int value;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(write_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, write_msg& x) {
+  return f(meta::type_name("ping_message"), x.sender, x.value);
+}
 
 struct contains_msg {
   actor sender;
   int value;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(contains_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, contains_msg& x) {
+  return f(meta::type_name("ping_message"), x.sender, x.value);
+}
 
 struct size_msg {
   actor sender;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(size_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, size_msg& x) {
+  return f(meta::type_name("ping_message"), x.sender);
+}
 
 struct result_msg {
   actor sender;
   int value;
 };
 const auto do_work_msg = result_msg{actor(), -1};
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(result_msg);
-
-// using do_work_msg_atom = atom_constant<atom("dowork")>;
-using end_work_msg_atom = atom_constant<atom("endwork")>;
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, result_msg& x) {
+  return f(meta::type_name("ping_message"), x.sender, x.value);
+}
 
 template <class T>
 int compare_to(const T& left, const T& right);
@@ -175,7 +200,7 @@ behavior worker_fun(event_based_actor* self, actor master, actor sorted_list,
                    contains_msg{actor_cast<actor>(self), random.next_int()});
       }
     } else {
-      self->send(master, end_work_msg_atom::value);
+      self->send(master, end_work_msg_atom_v);
     }
   }};
 }
@@ -219,7 +244,7 @@ behavior master_fun(event_based_actor* self, int num_workers,
   return {[=](end_work_msg_atom) mutable {
     ++num_workers_terminated;
     if (num_workers_terminated == num_workers) {
-      self->send(sorted_list, end_work_msg_atom::value);
+      self->send(sorted_list, end_work_msg_atom_v);
       self->quit();
     }
   }};

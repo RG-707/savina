@@ -3,6 +3,14 @@
 
 #include "benchmark_runner.hpp"
 
+CAF_BEGIN_TYPE_ID_BLOCK(count, first_custom_type_id)
+
+CAF_ADD_ATOM(count, increment_atom)
+CAF_ADD_ATOM(count, retrieve_msg_atom)
+CAF_ADD_ATOM(count, result_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(count)
+
 using namespace std;
 using namespace caf;
 
@@ -11,32 +19,20 @@ public:
   static int n; //= 1e6;
 
   config() {
+    init_global_meta_objects<count_type_ids>();
     opt_group{custom_options_, "global"}.add(n, "num,n", "number of messages");
   }
 };
 int config::n = 1e6;
 
-using increment_atom = atom_constant<atom("increment")>;
-
-struct retrieve_msg {
-  actor sender;
-};
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(retrieve_msg);
-
-struct result_msg {
-  int result;
-};
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(result_msg);
-
 behavior producer_actor(event_based_actor* self, actor counting) {
   return {[=](increment_atom) {
             for (int i = 0; i < config::n; ++i) {
-              self->send(counting, increment_atom::value);
+              self->send(counting, increment_atom_v);
             }
-            self->send(counting, retrieve_msg{actor_cast<actor>(self)});
+            self->send(counting, retrieve_msg_atom_v, self);
           },
-          [=](result_msg& m) {
-            auto result = m.result;
+          [=](result_msg_atom, int result) {
             if (result != config::n) {
               cout << "ERROR: expected: " << config::n << ", found: " << result
                    << endl;
@@ -50,7 +46,7 @@ behavior counting_actor(stateful_actor<int>* self) {
   self->state = 0;
   return {
     [=](increment_atom) { ++self->state; },
-    [=](retrieve_msg& m) { self->send(m.sender, result_msg{self->state}); }};
+    [=](retrieve_msg_atom, actor sender) { self->send(sender, result_msg_atom_v, self->state);},};
 }
 
 class bench : public benchmark {
@@ -69,7 +65,7 @@ public:
     actor_system system{cfg_};
     auto counting = system.spawn(counting_actor);
     auto producer = system.spawn(producer_actor, counting);
-    anon_send(producer, increment_atom::value);
+    anon_send(producer, increment_atom_v);
   }
 
 protected:

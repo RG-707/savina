@@ -5,6 +5,19 @@
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
 
+struct write_msg;
+struct read_msg;
+struct result_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(threadring, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(threadring, (write_msg))
+CAF_ADD_TYPE_ID(threadring, (read_msg))
+CAF_ADD_TYPE_ID(threadring, (result_msg))
+CAF_ADD_ATOM(threadring, end_work_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(threadring)
+
 using namespace std;
 using namespace caf;
 
@@ -13,22 +26,29 @@ struct write_msg {
   int key;
   int value;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(write_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, write_msg& x) {
+  return f(meta::type_name("ping_message"), x.sender, x.key, x.value);
+}
 
 struct read_msg {
   actor sender;
   int key;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(read_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, read_msg& x) {
+  return f(meta::type_name("ping_message"), x.sender, x.key);
+}
 
 struct result_msg {
   actor sender;
   int key;
 };
 const auto do_work_msg = result_msg{actor(), -1};
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(result_msg);
-
-using end_work_msg_atom = atom_constant<atom("endwork")>;
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, result_msg& x) {
+  return f(meta::type_name("ping_message"), x.sender, x.key);
+}
 
 class config : public actor_system_config {
 public:
@@ -38,6 +58,7 @@ public:
   using data_map = unordered_map<int, int>;
 
   config() {
+    init_global_meta_objects<threadring_type_ids>();
     opt_group{custom_options_, "global"}
       .add(num_entities, "eee,e", "number of entities")
       .add(num_msgs_per_worker, "mmm,m", "number of messges per worker")
@@ -87,7 +108,7 @@ behavior worker_fun(event_based_actor* self, actor master, actor dictionary,
                    read_msg{actor_cast<actor>(self), random.next_int()});
       }
     } else {
-      self->send(master, end_work_msg_atom::value);
+      self->send(master, end_work_msg_atom_v);
       self->quit();
     }
   }};
@@ -108,7 +129,7 @@ behavior master_fun(event_based_actor* self, int num_workers,
     [=](end_work_msg_atom) mutable {
       ++num_worker_terminated;
       if (num_worker_terminated == num_workers) {
-        self->send(dictionary, end_work_msg_atom::value);
+        self->send(dictionary, end_work_msg_atom_v);
         self->quit();
       }
     },

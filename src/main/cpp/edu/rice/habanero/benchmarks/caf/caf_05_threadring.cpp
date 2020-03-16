@@ -4,6 +4,17 @@
 
 #include "benchmark_runner.hpp"
 
+struct exit_message;
+struct ping_message;
+
+CAF_BEGIN_TYPE_ID_BLOCK(threadring, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(threadring, (ping_message))
+CAF_ADD_TYPE_ID(threadring, (exit_message))
+CAF_ADD_ATOM(threadring, data_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(threadring)
+
 using namespace std;
 using namespace caf;
 
@@ -13,6 +24,7 @@ public:
   int r = 100000;
 
   config() {
+    init_global_meta_objects<threadring_type_ids>();
     opt_group{custom_options_, "global"}
       .add(n, "nnn,n", "num of actors")
       .add(r, "rrr,r", "num of pings");
@@ -30,12 +42,11 @@ struct ping_message {
     return ping_message{pings_left - 1};
   }
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(ping_message);
 
-struct data_message {
-  actor data;
-};
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(data_message);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, ping_message& x) {
+  return f(meta::type_name("ping_message"), x.pings_left);
+}
 
 struct exit_message {
   int exits_left;
@@ -48,7 +59,11 @@ struct exit_message {
     return exit_message{exits_left - 1};
   }
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(exit_message);
+
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, exit_message& x) {
+  return f(meta::type_name("ping_message"), x.exits_left);
+}
 
 behavior thread_ring_actor(stateful_actor<actor>* self, int /*id*/,
                            int num_actors_in_ring) {
@@ -65,7 +80,7 @@ behavior thread_ring_actor(stateful_actor<actor>* self, int /*id*/,
             }
             self->quit();
           },
-          [=](data_message& dm) { self->state = dm.data; }};
+          [=](data_msg_atom, actor data) { self->state = data; }};
 }
 
 void starter_actor(event_based_actor* self, const config* cfg) {
@@ -78,7 +93,7 @@ void starter_actor(event_based_actor* self, const config* cfg) {
   }
   for (size_t i = 0; i < ring_actors.size(); ++i) {
     auto next_actor = ring_actors[(i + 1) % num_actors_in_ring];
-    self->send(ring_actors[i], data_message{next_actor});
+    self->send(ring_actors[i], data_msg_atom_v, next_actor);
   }
   self->send(ring_actors[0], ping_message{cfg->r});
 }

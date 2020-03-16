@@ -1,9 +1,17 @@
 #include <atomic>
-#include <caf/atom.hpp>
 #include <queue>
 
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
+
+CAF_BEGIN_TYPE_ID_BLOCK(cigsmok, first_custom_type_id)
+
+CAF_ADD_ATOM(cigsmok, start_atom)
+CAF_ADD_ATOM(cigsmok, exit_atom)
+CAF_ADD_ATOM(cigsmok, smoke_atom)
+CAF_ADD_ATOM(cigsmok, smoked_atom)
+
+CAF_END_TYPE_ID_BLOCK(cigsmok)
 
 using namespace std;
 using namespace caf;
@@ -14,16 +22,12 @@ public:
   int s = 200;
 
   config() {
+    init_global_meta_objects<cigsmok_type_ids>();
     opt_group{custom_options_, "global"}
       .add(r, "rrr,r", "number of rounds")
       .add(s, "sss,s", "number of smokers / ingredients");
   }
 };
-
-using start_atom = atom_constant<atom("start")>;
-using exit_atom = atom_constant<atom("exit")>;
-using smoke_atom = atom_constant<atom("smoke")>;
-using smoked_atom = atom_constant<atom("smoked")>;
 
 int busy_wait(const int limit) {
   int test = 0;
@@ -39,7 +43,7 @@ int busy_wait(const int limit) {
 behavior smoker_actor(event_based_actor* self, const actor& arbiter) {
   return {[=](smoke_atom, int busy_wait_periode) {
             // notify arbiter that started smoking
-            self->send(arbiter, smoked_atom::value);
+            self->send(arbiter, smoked_atom_v);
             // now smoke cigarette
             busy_wait(busy_wait_periode);
           },
@@ -68,7 +72,7 @@ behavior arbiter_actor(stateful_actor<arbiter_actor_states>* self,
             // choose a random smoker to start smoking
             auto index = abs(s.random.next_int()) % num_smoker;
             auto busy_wait_periode = s.random.next_int(1000) + 10;
-            self->send(s.smoker_actors.at(index), smoke_atom::value,
+            self->send(s.smoker_actors.at(index), smoke_atom_v,
                        busy_wait_periode);
           },
           [=](smoked_atom) {
@@ -78,14 +82,14 @@ behavior arbiter_actor(stateful_actor<arbiter_actor_states>* self,
             if (s.rounds_so_far >= num_rounds) {
               // had enough, now exit
               for (auto& smoker : s.smoker_actors) {
-                self->send(smoker, exit_atom::value);
+                self->send(smoker, exit_atom_v);
               }
               self->quit();
             } else {
               // choose a random smoker to start smoking
               auto index = abs(s.random.next_int()) % num_smoker;
               auto busy_wait_periode = s.random.next_int(1000) + 10;
-              self->send(s.smoker_actors.at(index), smoke_atom::value,
+              self->send(s.smoker_actors.at(index), smoke_atom_v,
                          busy_wait_periode);
             }
           }};
@@ -109,7 +113,7 @@ public:
     actor_system system{cfg_};
     auto arbiter = system.spawn(arbiter_actor, cfg_.r, cfg_.s);
 
-    anon_send(arbiter, start_atom::value);
+    anon_send(arbiter, start_atom_v);
 
     system.await_all_actors_done();
   }

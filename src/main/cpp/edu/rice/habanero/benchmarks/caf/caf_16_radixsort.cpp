@@ -6,6 +6,16 @@
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
 
+struct next_actor_msg;
+struct value_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(radixsort, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(radixsort, (next_actor_msg))
+CAF_ADD_TYPE_ID(radixsort, (value_msg))
+
+CAF_END_TYPE_ID_BLOCK(radixsort)
+
 using namespace std;
 using std::chrono::seconds;
 using namespace caf;
@@ -17,6 +27,7 @@ public:
   long long s = 2048;
 
   config() {
+    init_global_meta_objects<radixsort_type_ids>();
     opt_group{custom_options_, "global"}
       .add(n, "nnn,n", "data size")
       .add(m, "mmm,m", "maximum value")
@@ -27,12 +38,18 @@ public:
 struct next_actor_msg {
   actor next_actor;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(next_actor_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, next_actor_msg& x) {
+  return f(meta::type_name("next_actor_msg"), x.next_actor);
+}
 
 struct value_msg {
   long long value;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(value_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, value_msg& x) {
+  return f(meta::type_name("next_actor_msg"), x.value);
+}
 
 behavior int_source_actor_fun(event_based_actor* self, int num_values,
                               long long max_value, long long seed) {

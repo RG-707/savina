@@ -6,6 +6,19 @@
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
 
+struct debit_msg;
+struct credit_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(banking, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(banking, (debit_msg))
+CAF_ADD_TYPE_ID(banking, (credit_msg))
+CAF_ADD_ATOM(banking, start_msg_atom)
+CAF_ADD_ATOM(banking, stop_msg_atom)
+CAF_ADD_ATOM(banking, reply_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(banking)
+
 using namespace std;
 using std::chrono::seconds;
 using namespace caf;
@@ -17,6 +30,7 @@ public:
   static double initial_balance;
 
   config() {
+    init_global_meta_objects<banking_type_ids>();
     opt_group{custom_options_, "global"}
       .add(a, "aaa,a", "number of accounts")
       .add(n, "nnn,n", "number of transactions");
@@ -28,22 +42,24 @@ public:
 };
 double config::initial_balance = 0;
 
-using start_msg_atom = atom_constant<atom("start")>;
-using stop_msg_atom = atom_constant<atom("stop")>;
-using reply_msg_atom = atom_constant<atom("reply")>;
-
 struct debit_msg {
   actor sender;
   double amount;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(debit_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, debit_msg& x) {
+  return f(meta::type_name("debit_msg"), x.sender, x.amount);
+}
 
 struct credit_msg {
   actor sender;
   double amount;
   actor recipient;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(credit_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, credit_msg& x) {
+  return f(meta::type_name("credit_msg"), x.sender, x.amount, x.recipient);
+}
 
 #ifdef REQUEST_AWAIT
 struct account_state {
@@ -57,7 +73,7 @@ behavior account(stateful_actor<account_state>* self, int /*id*/,
   return {
     [=](debit_msg& dm) {
       self->state.balance += dm.amount;
-      return reply_msg_atom::value;
+      return reply_msg_atom_v;
     },
     [=](credit_msg& cm) {
       auto& s = self->state;
@@ -75,7 +91,7 @@ behavior account(stateful_actor<account_state>* self, int /*id*/,
                   debit_msg{actor_cast<actor>(self), cm.amount})
         .await(
 #endif
-          [=](reply_msg_atom) { self->send(sender, reply_msg_atom::value); });
+          [=](reply_msg_atom) { self->send(sender, reply_msg_atom_v); });
     },
     [=](stop_msg_atom) { self->quit(); }};
 }
@@ -127,13 +143,13 @@ behavior account(stateful_actor<account_state>* self, int /*id*/,
   s.balance = balance_;
   s.wait_for_result = {[=](reply_msg_atom) {
     auto& s = self->state;
-    self->send(s.sender, reply_msg_atom::value);
+    self->send(s.sender, reply_msg_atom_v);
     self->unbecome();
   }};
   return {
     [=](debit_msg& dm) {
       self->state.balance += dm.amount;
-      return reply_msg_atom::value;
+      return reply_msg_atom_v;
     },
     [=](credit_msg& cm) {
       auto& s = self->state;
@@ -217,7 +233,7 @@ behavior teller(stateful_actor<teller_state>* self, int num_accounts,
             ++s.num_completed_banks;
             if (s.num_completed_banks == num_bankings) {
               for (auto& loop_account : s.accounts) {
-                self->send(loop_account, stop_msg_atom::value);
+                self->send(loop_account, stop_msg_atom_v);
               }
               self->quit();
             }
@@ -244,7 +260,7 @@ public:
     actor_system system{cfg_};
     cfg_.initalize();
     auto master = system.spawn(teller, cfg_.a, cfg_.n);
-    anon_send(master, start_msg_atom::value);
+    anon_send(master, start_msg_atom_v);
   }
 
 protected:

@@ -4,8 +4,21 @@
 #include <iostream>
 
 #include "benchmark_runner.hpp"
-
 #include "pseudo_random.hpp"
+
+struct data_item_msg;
+struct consumer_available_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(bndbuffer, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(bndbuffer, (data_item_msg))
+CAF_ADD_TYPE_ID(bndbuffer, (consumer_available_msg))
+CAF_ADD_ATOM(bndbuffer, produce_data_msg_atom)
+CAF_ADD_ATOM(bndbuffer, producer_exit_msg_atom)
+CAF_ADD_ATOM(bndbuffer, consumer_exit_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(bndbuffer)
+
 
 using namespace std;
 using namespace caf;
@@ -21,6 +34,7 @@ public:
   int num_mailboxes = 1;
 
   config() {
+    init_global_meta_objects<bndbuffer_type_ids>();
     opt_group{custom_options_, "global"}
       .add(buffer_size, "bbb,b", "buffer size")
       .add(num_producers, "ppp,p", "number of producers")
@@ -57,16 +71,19 @@ struct data_item_msg {
   double data;
   actor producer;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(data_item_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, data_item_msg& x) {
+  return f(meta::type_name("data_item_msg"), x.data, x.producer);
+}
 
 struct consumer_available_msg {
   actor consumer;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(consumer_available_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, consumer_available_msg& x) {
+  return f(meta::type_name("consumer_available_msg"), x.consumer);
+}
 
-using produce_data_msg_atom = atom_constant<atom("prodatam")>;
-using producer_exit_msg_atom = atom_constant<atom("proexitm")>;
-using consumer_exit_msg_atom = atom_constant<atom("conexitm")>;
 struct consumer_actor_state {
   consumer_available_msg consumer_available_message;
   double cons_item;
@@ -107,7 +124,7 @@ behavior producer_actor(stateful_actor<producer_actor_state>* self, int /*id*/,
     auto& s = self->state;
     if (s.items_produced == num_items_to_produce) {
       // onPreExit
-      self->send(manager, producer_exit_msg_atom::value);
+      self->send(manager, producer_exit_msg_atom_v);
       self->quit();
     } else {
       produce_data();
@@ -147,12 +164,12 @@ behavior manager_actor(stateful_actor<manager_actor_state>* self,
     s.available_consumers.emplace_back(loop_consumer);
   }
   for (auto& loop_producer : s.producers) {
-    self->send(loop_producer, produce_data_msg_atom::value);
+    self->send(loop_producer, produce_data_msg_atom_v);
   }
   // onPreExit
   auto on_pre_exit = [=]() {
     for (auto& loop_consumer : s.consumers) {
-      self->send(loop_consumer, consumer_exit_msg_atom::value);
+      self->send(loop_consumer, consumer_exit_msg_atom_v);
     }
   };
   auto try_exit = [=]() {
@@ -176,7 +193,7 @@ behavior manager_actor(stateful_actor<manager_actor_state>* self,
                 >= s.adjust_buffer_size) {
               s.available_producers.emplace_back(move(producer));
             } else {
-              self->send(producer, produce_data_msg_atom::value);
+              self->send(producer, produce_data_msg_atom_v);
             }
           },
           [=](consumer_available_msg& cm) {
@@ -190,7 +207,7 @@ behavior manager_actor(stateful_actor<manager_actor_state>* self,
               s.pending_data.pop_front();
               if (!s.available_producers.empty()) {
                 self->send(s.available_producers.front(),
-                           produce_data_msg_atom::value);
+                           produce_data_msg_atom_v);
                 s.available_producers.pop_front();
               }
             }

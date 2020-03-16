@@ -6,6 +6,20 @@
 
 #include "benchmark_runner.hpp"
 
+struct compute_msg;
+struct result_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(logmap, first_custom_type_id)
+
+CAF_ADD_ATOM(logmap, start_msg_atom)
+CAF_ADD_ATOM(logmap, stop_msg_atom)
+CAF_ADD_ATOM(logmap, next_term_msg_atom)
+CAF_ADD_ATOM(logmap, get_term_msg_atom)
+CAF_ADD_TYPE_ID(logmap, (compute_msg))
+CAF_ADD_TYPE_ID(logmap, (result_msg))
+
+CAF_END_TYPE_ID_BLOCK(logmap)
+
 using namespace std;
 using std::chrono::seconds;
 using namespace caf;
@@ -18,6 +32,7 @@ public:
   static double increment;  // = 0.0025;
 
   config() {
+    init_global_meta_objects<logmap_type_ids>();
     opt_group{custom_options_, "global"}
       .add(num_terms, "ttt,t", "number of terms")
       .add(num_series, "sss,s", "number of series")
@@ -33,21 +48,22 @@ double compute_next_term(double cur_term, double rate) {
   return rate * cur_term * (1 - cur_term);
 }
 
-using start_msg_atom = atom_constant<atom("startmsg")>;
-using stop_msg_atom = atom_constant<atom("stopmsg")>;
-using next_term_msg_atom = atom_constant<atom("nextmsg")>;
-using get_term_msg_atom = atom_constant<atom("getmsg")>;
-
 struct compute_msg {
   actor sender;
   double term;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(compute_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, compute_msg& x) {
+  return f(meta::type_name("compute_msg"), x.sender, x.term);
+}
 
 struct result_msg {
   double term;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(result_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, result_msg& x) {
+  return f(meta::type_name("result_msg"), x.term);
+}
 
 #ifdef REQUEST_AWAIT
 struct series_worker_state {
@@ -172,11 +188,11 @@ behavior master_fun(stateful_actor<master_state>* self) {
             auto& s = self->state;
             for (int i = 0; i < config::num_terms; ++i) {
               for (auto& loop_worker : s.workers) {
-                self->send(loop_worker, next_term_msg_atom::value);
+                self->send(loop_worker, next_term_msg_atom_v);
               }
             }
             for (auto& loop_worker : s.workers) {
-              self->send(loop_worker, get_term_msg_atom::value);
+              self->send(loop_worker, get_term_msg_atom_v);
               ++s.num_work_requested;
             }
           },
@@ -187,10 +203,10 @@ behavior master_fun(stateful_actor<master_state>* self) {
             if (s.num_work_requested == s.num_work_received) {
               cout << "Terms sum: " << s.terms_sum << endl;
               for (auto& loop_computer : s.computers) {
-                self->send(loop_computer, stop_msg_atom::value);
+                self->send(loop_computer, stop_msg_atom_v);
               }
               for (auto& loop_worker : s.workers) {
-                self->send(loop_worker, stop_msg_atom::value);
+                self->send(loop_worker, stop_msg_atom_v);
               }
               self->quit();
             }
@@ -216,7 +232,7 @@ public:
   void run_iteration() override {
     actor_system system{cfg_};
     auto master = system.spawn(master_fun);
-    anon_send(master, start_msg_atom::value);
+    anon_send(master, start_msg_atom_v);
   }
 
 protected:

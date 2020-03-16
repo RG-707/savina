@@ -4,26 +4,11 @@
 
 #include "benchmark_runner.hpp"
 
-using namespace std;
-using namespace caf;
-
-class config : public actor_system_config {
-public:
-  int num_chameneos = 100;
-  int num_meetings = 200000;
-
-  config() {
-    opt_group{custom_options_, "global"}
-      .add(num_chameneos, "ccc,c", "number of chameneos")
-      .add(num_meetings, "mmm,m", "number of meetings");
-  }
-};
-
 enum color_t { red, blue, yellow, faded };
 
 const char* color_str[] = {"red", "blue", "yellow", "faded"};
 
-string to_string(color_t c) {
+std::string to_string(color_t c) {
   return color_str[c];
 }
 
@@ -69,7 +54,7 @@ struct chameneos_helper {
       case faded:
         return faded;
     }
-    throw string("Unknown color: " + to_string(color));
+    throw std::string("Unknown color: " + to_string(color));
   }
 
   static color_t faded_color() {
@@ -78,27 +63,67 @@ struct chameneos_helper {
 
   struct meet_msg {
     color_t color;
-    actor sender;
+    caf::actor sender;
   };
 
   struct change_msg {
     color_t color;
-    actor sender;
+    caf::actor sender;
   };
 
   struct meeting_count_msg {
     int count;
-    actor sender;
+    caf::actor sender;
   };
 
   struct exit_msg {
-    actor sender;
+    caf::actor sender;
   };
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(chameneos_helper::meet_msg);
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(chameneos_helper::change_msg);
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(chameneos_helper::meeting_count_msg);
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(chameneos_helper::exit_msg);
+
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, chameneos_helper::meet_msg& x) {
+  return f(caf::meta::type_name("meet_msg"), x.color, x.sender);
+}
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, chameneos_helper::change_msg& x) {
+  return f(caf::meta::type_name("change_msg"), x.color, x.sender);
+}
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, chameneos_helper::meeting_count_msg& x) {
+  return f(caf::meta::type_name("meeting_count_msg"), x.count, x.sender);
+}
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, chameneos_helper::exit_msg& x) {
+  return f(caf::meta::type_name("exit_msg"), x.sender);
+}
+
+CAF_BEGIN_TYPE_ID_BLOCK(chameneos, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(chameneos, (chameneos_helper::meet_msg))
+CAF_ADD_TYPE_ID(chameneos, (chameneos_helper::change_msg))
+CAF_ADD_TYPE_ID(chameneos, (chameneos_helper::meeting_count_msg))
+CAF_ADD_TYPE_ID(chameneos, (chameneos_helper::exit_msg))
+CAF_ADD_ATOM(chameneos, data_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(chameneos)
+
+
+using namespace std;
+using namespace caf;
+
+class config : public actor_system_config {
+public:
+  int num_chameneos = 100;
+  int num_meetings = 200000;
+
+  config() {
+    init_global_meta_objects<chameneos_type_ids>();
+    opt_group{custom_options_, "global"}
+      .add(num_chameneos, "ccc,c", "number of chameneos")
+      .add(num_meetings, "mmm,m", "number of meetings");
+  }
+};
 
 struct chameneos_chameneo_actor_state {
   int meetings;

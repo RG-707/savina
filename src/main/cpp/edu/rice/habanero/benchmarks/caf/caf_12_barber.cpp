@@ -1,9 +1,21 @@
 #include <atomic>
-#include <caf/atom.hpp>
 #include <queue>
 
 #include "benchmark_runner.hpp"
 #include "pseudo_random.hpp"
+
+CAF_BEGIN_TYPE_ID_BLOCK(barber, first_custom_type_id)
+
+CAF_ADD_ATOM(barber, start_atom)
+CAF_ADD_ATOM(barber, exit_atom)
+CAF_ADD_ATOM(barber, enter_atom)
+CAF_ADD_ATOM(barber, full_atom)
+CAF_ADD_ATOM(barber, next_atom)
+CAF_ADD_ATOM(barber, wait_atom)
+CAF_ADD_ATOM(barber, done_atom)
+CAF_ADD_ATOM(barber, returned_atom)
+
+CAF_END_TYPE_ID_BLOCK(barber)
 
 using namespace std;
 using namespace caf;
@@ -16,6 +28,7 @@ public:
   int ahr = 1000;
 
   config() {
+    init_global_meta_objects<barber_type_ids>();
     opt_group{custom_options_, "global"}
       .add(n, "nnn,n", "number of haircuts")
       .add(w, "www,w", "waiting room size")
@@ -23,15 +36,6 @@ public:
       .add(ahr, "ahr,h", "average haircut rate");
   }
 };
-
-using start_atom = atom_constant<atom("start")>;
-using exit_atom = atom_constant<atom("exit")>;
-using enter_atom = atom_constant<atom("enter")>;
-using full_atom = atom_constant<atom("full")>;
-using next_atom = atom_constant<atom("next")>;
-using wait_atom = atom_constant<atom("wait")>;
-using done_atom = atom_constant<atom("done")>;
-using returned_atom = atom_constant<atom("returned")>;
 
 int busy_wait(const int limit) {
   int test = 0;
@@ -58,14 +62,14 @@ behavior waiting_room_actor(stateful_actor<waiting_room_sates>* self,
             auto& s = self->state;
             if (s.waiting_customers.size() == capacity) {
               CAF_LOG_DEBUG("Waitingroom: Full!");
-              self->send(customer, full_atom::value);
+              self->send(customer, full_atom_v);
             } else {
               s.waiting_customers.push(customer);
               if (s.barber_asleep) {
                 s.barber_asleep = false;
-                self->send(self, next_atom::value);
+                self->send(self, next_atom_v);
               } else {
-                self->send(customer, wait_atom::value);
+                self->send(customer, wait_atom_v);
               }
             }
           },
@@ -74,17 +78,17 @@ behavior waiting_room_actor(stateful_actor<waiting_room_sates>* self,
             if (s.waiting_customers.empty()) {
               CAF_LOG_DEBUG("Waitingroom: Barber sleep.");
               s.barber_asleep = true;
-              self->send(barber, wait_atom::value);
+              self->send(barber, wait_atom_v);
             } else {
               CAF_LOG_DEBUG("Waitingroom: Customer to barber.");
               auto customer = s.waiting_customers.front();
-              self->send(barber, enter_atom::value, customer, self);
+              self->send(barber, enter_atom_v, customer, self);
               s.waiting_customers.pop();
             }
           },
           [=](exit_atom) {
             CAF_LOG_DEBUG("Waitingroom: Exiting.");
-            self->send(barber, exit_atom::value);
+            self->send(barber, exit_atom_v);
             self->quit();
           }};
 }
@@ -97,10 +101,10 @@ behavior barber_actor(stateful_actor<barber_states>* self, int ahr) {
   return {[=](enter_atom, actor customer, actor room) {
             CAF_LOG_DEBUG("Barber: Processing customer " << customer);
             auto& s = self->state;
-            self->send(customer, start_atom::value);
+            self->send(customer, start_atom_v);
             busy_wait(s.random.next_int(ahr) + 10);
-            self->send(customer, done_atom::value);
-            self->send(room, next_atom::value);
+            self->send(customer, done_atom_v);
+            self->send(room, next_atom_v);
           },
           [=](wait_atom) {
             CAF_LOG_DEBUG("Barber: No customers. Going to have a sleep");
@@ -117,7 +121,7 @@ behavior customer_actor(event_based_actor* self, int id,
     [=](full_atom) {
       CAF_LOG_DEBUG("Customer:" << id
                                 << " The waiting room is full. I am leaving.");
-      self->send(customer_factory, returned_atom::value, self);
+      self->send(customer_factory, returned_atom_v, self);
     },
     [=](wait_atom) { CAF_LOG_DEBUG("Customer:" << id << " I will wait."); },
     [=](start_atom) {
@@ -125,7 +129,7 @@ behavior customer_actor(event_based_actor* self, int id,
     },
     [=](done_atom) {
       CAF_LOG_DEBUG("Customer:" << id << " I have been served.");
-      self->send(customer_factory, done_atom::value);
+      self->send(customer_factory, done_atom_v);
       self->quit();
     }};
 }
@@ -145,7 +149,7 @@ behavior customer_factory_actor(stateful_actor<customer_factory_states>* self,
             for (int i = 0; i < haircuts; ++i) {
               auto customer
                 = self->spawn(customer_actor, counter->fetch_add(1), self);
-              self->send(room, enter_atom::value, customer);
+              self->send(room, enter_atom_v, customer);
               busy_wait(self->state.random.next_int(apr) + 10);
             }
             CAF_LOG_DEBUG("Factory: Finished spawning customers.");
@@ -153,7 +157,7 @@ behavior customer_factory_actor(stateful_actor<customer_factory_states>* self,
           [=](returned_atom, actor customer) {
             CAF_LOG_DEBUG("Factory: Customers " << customer << " returned.");
             counter->fetch_add(1);
-            self->send(room, enter_atom::value, customer);
+            self->send(room, enter_atom_v, customer);
           },
           [=](done_atom) {
             auto& s = self->state;
@@ -161,7 +165,7 @@ behavior customer_factory_actor(stateful_actor<customer_factory_states>* self,
             CAF_LOG_DEBUG("Factory: Haircut number " << s.haircuts_so_far
                                                      << " done.");
             if (s.haircuts_so_far == haircuts) {
-              self->send(room, exit_atom::value);
+              self->send(room, exit_atom_v);
               self->quit();
             }
           }};
@@ -193,7 +197,7 @@ public:
     auto factory
       = system.spawn(customer_factory_actor, &counter, cfg_.apr, cfg_.n, room);
 
-    anon_send(factory, start_atom::value);
+    anon_send(factory, start_atom_v);
 
     system.await_all_actors_done();
     cout << "Total attempts: " << counter << endl;

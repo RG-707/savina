@@ -4,6 +4,12 @@
 
 #include "benchmark_runner.hpp"
 
+CAF_BEGIN_TYPE_ID_BLOCK(fjcreate, first_custom_type_id)
+
+CAF_ADD_ATOM(fjcreate, msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(fjcreate)
+
 using namespace std;
 using namespace caf;
 
@@ -12,6 +18,7 @@ public:
   int n = 40000;
 
   config() {
+    init_global_meta_objects<fjcreate_type_ids>();
     opt_group{custom_options_, "global"}.add(n, "nnn,n", "num of workers");
   }
 };
@@ -25,11 +32,8 @@ void perform_computation(double theta) {
   }
 }
 
-struct message_t {};
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(message_t);
-
 behavior fork_join_actor(event_based_actor* self) {
-  return {[=](message_t) {
+  return {[=](msg_atom) {
     perform_computation(37.2);
     self->quit();
   }};
@@ -49,10 +53,9 @@ public:
 
   void run_iteration() override {
     actor_system system{cfg_};
-    message_t message;
     for (int i = 0; i < cfg_.n; ++i) {
       auto fj_runner = system.spawn(fork_join_actor);
-      anon_send(fj_runner, message);
+      anon_send(fj_runner, msg_atom_v);
     }
   }
 

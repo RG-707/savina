@@ -5,6 +5,19 @@
 
 #include "benchmark_runner.hpp"
 
+struct ping_msg;
+struct pong_msg;
+struct neighbor_msg;
+
+CAF_BEGIN_TYPE_ID_BLOCK(big, first_custom_type_id)
+
+CAF_ADD_TYPE_ID(big, (ping_msg))
+CAF_ADD_TYPE_ID(big, (pong_msg))
+CAF_ADD_TYPE_ID(big, (neighbor_msg))
+CAF_ADD_ATOM(big, exit_msg_atom)
+
+CAF_END_TYPE_ID_BLOCK(big)
+
 using namespace std;
 using namespace caf;
 
@@ -14,6 +27,7 @@ public:
   int w = 120;
 
   config() {
+    init_global_meta_objects<big_type_ids>();
     opt_group{custom_options_, "global"}
       .add(n, "nnn,n", "number of pings")
       .add(w, "www,w", "number of actors");
@@ -23,24 +37,35 @@ public:
 struct ping_msg {
   int sender;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(ping_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, ping_msg& x) {
+  return f(meta::type_name("ping_message"), x.sender);
+}
 
 struct pong_msg {
   int sender;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(pong_msg);
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, pong_msg& x) {
+  return f(meta::type_name("ping_message"), x.sender);
+}
 
 struct neighbor_msg {
   vector<actor> neighbors;
 };
-CAF_ALLOW_UNSAFE_MESSAGE_TYPE(neighbor_msg);
-
-using exit_msg_atom = atom_constant<atom("exit")>;
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, neighbor_msg& x) {
+  return f(meta::type_name("ping_message"), x.neighbors);
+}
 
 struct sink_actor_state {
   int num_messages;
   vector<actor> neighbors;
 };
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, sink_actor_state& x) {
+  return f(meta::type_name("ping_message"), x.num_messages, x.neighbors);
+}
 
 behavior sink_actor_fun(stateful_actor<sink_actor_state>* self,
                         int num_workers) {
@@ -51,7 +76,7 @@ behavior sink_actor_fun(stateful_actor<sink_actor_state>* self,
       ++s.num_messages;
       if (s.num_messages == num_workers) {
         for (auto& loop_worker : s.neighbors) {
-          self->send(loop_worker, exit_msg_atom::value);
+          self->send(loop_worker, exit_msg_atom_v);
           self->quit();
         }
       }
@@ -98,7 +123,7 @@ behavior big_actor_fun(stateful_actor<big_actor_state>* self, int id,
              << ", but received ping from " << pm.sender << endl;
       }
       if (s.num_pings == num_messages) {
-        self->send(sink_actor, exit_msg_atom::value);
+        self->send(sink_actor, exit_msg_atom_v);
       } else {
         send_ping();
         ++s.num_pings;
