@@ -25,8 +25,6 @@ public:
 };
 int config::n = 1e6;
 
-using increment_atom = atom_constant<atom("increment")>;
-
 struct retrieve_msg {
   actor sender;
 };

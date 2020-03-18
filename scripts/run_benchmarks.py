@@ -7,6 +7,9 @@ import argparse
 
 def run_akka_benchmark(name, nr, num_cores, n=10):
         if (num_cores < 10):
+            error = open('./akka_results/akka_{}_{}_00{}.err'.format(nr, name, num_cores), 'w')
+            output = open('./akka_results/akka_{}_{}_00{}.out'.format(nr, name, num_cores), 'w')
+        elif (num_cores < 100):
             error = open('./akka_results/akka_{}_{}_0{}.err'.format(nr, name, num_cores), 'w')
             output = open('./akka_results/akka_{}_{}_0{}.out'.format(nr, name, num_cores), 'w')
         else:
@@ -21,6 +24,9 @@ def run_akka_benchmark(name, nr, num_cores, n=10):
 
 def run_caf_benchmark(name, num_cores, n=10):
     if (num_cores < 10):
+        error = open('./caf_results/caf_{}_00{}.err'.format(name, num_cores), 'w')
+	output = open('./caf_results/caf_{}_00{}.out'.format(name, num_cores), 'w')
+    elif (num_cores < 100):
         error = open('./caf_results/caf_{}_0{}.err'.format(name, num_cores), 'w')
 	output = open('./caf_results/caf_{}_0{}.out'.format(name, num_cores), 'w')
     else:
@@ -109,7 +115,7 @@ def main():
 			    type=int, default=10)
 	args = vars(parser.parse_args())
 	runs = args['runs']
-        for i in range(4,68,4):
+        for i in range(4,132,4):
             cmd = './activate_cores {}'.format(i)
             call(cmd, shell=True)
             sleep(1)
