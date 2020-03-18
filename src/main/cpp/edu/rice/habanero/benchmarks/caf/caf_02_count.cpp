@@ -2,6 +2,8 @@
 #include <iostream>
 
 #include "benchmark_runner.hpp"
+struct retrieve_msg;
+struct result_msg;
 
 CAF_BEGIN_TYPE_ID_BLOCK(count, first_custom_type_id)
 
