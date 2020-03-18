@@ -5,9 +5,9 @@
 
 CAF_BEGIN_TYPE_ID_BLOCK(count, first_custom_type_id)
 
+CAF_ADD_TYPE_ID(count, (retrieve_msg))
+CAF_ADD_TYPE_ID(count, (result_msg))
 CAF_ADD_ATOM(count, increment_atom)
-CAF_ADD_ATOM(count, retrieve_msg_atom)
-CAF_ADD_ATOM(count, result_msg_atom)
 
 CAF_END_TYPE_ID_BLOCK(count)
 
@@ -25,14 +25,33 @@ public:
 };
 int config::n = 1e6;
 
+using increment_atom = atom_constant<atom("increment")>;
+
+struct retrieve_msg {
+  actor sender;
+};
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, retrieve_msg& x) {
+  return f(caf::meta::type_name("retrieve_msg"), x.sender);
+}
+
+struct result_msg {
+  int result;
+};
+template <class Inspector>
+typename Inspector::result_type inspect(Inspector& f, result_msg& x) {
+  return f(caf::meta::type_name("result_msg"), x.result);
+}
+
 behavior producer_actor(event_based_actor* self, actor counting) {
   return {[=](increment_atom) {
-            for (int i = 0; i < config::n; ++i) {
-              self->send(counting, increment_atom_v);
-            }
-            self->send(counting, retrieve_msg_atom_v, self);
-          },
-          [=](result_msg_atom, int result) {
+    for (int i = 0; i < config::n; ++i) {
+      self->send(counting, increment_atom_v);
+    }
+    self->send(counting, retrieve_msg{actor_cast<actor>(self)});
+  },
+          [=](result_msg& m) {
+            auto result = m.result;
             if (result != config::n) {
               cout << "ERROR: expected: " << config::n << ", found: " << result
                    << endl;
@@ -46,7 +65,7 @@ behavior counting_actor(stateful_actor<int>* self) {
   self->state = 0;
   return {
     [=](increment_atom) { ++self->state; },
-    [=](retrieve_msg_atom, actor sender) { self->send(sender, result_msg_atom_v, self->state);},};
+    [=](retrieve_msg& m) { self->send(m.sender, result_msg{self->state}); }};
 }
 
 class bench : public benchmark {
